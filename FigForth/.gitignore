@@ -1,0 +1,7 @@
+# outputs from assembler, or emacs backup files.
+*.bin
+*.lst
+*.map
+*.rom
+*.tmp
+*~

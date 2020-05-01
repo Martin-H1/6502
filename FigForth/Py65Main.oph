@@ -1,0 +1,203 @@
+; -----------------------------------------------------------------------------
+; Used with the Ophis assembler and the py65mon simulator
+; -----------------------------------------------------------------------------
+.outfile "py65mon.rom"
+
+.alias py65_putc	$f001
+.alias py65_getc	$f004
+
+; =============================================================================
+; FORTH CODE
+.require "Fig6502.oph"
+
+.macro TraceNext
+;       jsr TRACE
+.macend
+
+.macro TraceColon
+;       jsr TCOLON
+.macend
+
+;
+; Everything past here is considered the ROM monitor, so advance to leave
+; space for the dictionary to grow.
+;
+
+.advance $c000
+
+;
+;    This is a trace routine, to be used until FORTH is generally
+;    operating. Then NOP the terminal query "jsr ONEKEY" in the macro
+;    above. This will allow user input to the text interpreter. When
+;    crashes occur, the display shows IP, W, and the word locations
+;    of the offending code. When all is well, remove : TRACE, TCOLON,
+;    PRNAM, DECNP, and the following monitor/register equates.
+;
+;
+;
+;    Monitor routines needed to trace.
+;
+.alias XBLANK	spcout		; print one blank
+.alias CRLF	crout		; print a carriage return and line feed.
+.alias HEX2	hexout		; print accum as two hex numbers
+.alias LETTER	cout		; print accum as one ASCII character
+.alias ONEKEY	cin		; wait for keystroke
+.alias XW	$12		; scratch reg. to next code field add
+.alias NP	$14		; scratch reg. pointing to name field
+;
+;
+TRACE:	stx XSAVE
+
+	jsr CRLF
+	lda IP+1
+	jsr HEX2
+	lda IP
+	jsr HEX2		; print IP, the interpreter pointer
+	jsr XBLANK
+;
+;
+	ldy #0			; TODO changed from lda
+	lda (IP),Y
+	sta XW
+	sta NP			; fetch the next code field pointer
+	iny
+	lda (IP),Y
+	sta XW+1
+	sta NP+1
+	jsr PRNAM		; print dictionary name
+;
+	lda XW+1
+	jsr HEX2		; print code field address
+	lda XW
+	jsr HEX2
+	jsr XBLANK
+;
+	lda XSAVE		; print stack location in zero-page
+	jsr HEX2
+	jsr XBLANK
+;
+	lda #1			; print return stack bottom in page 1
+	jsr HEX2
+	tsx
+	inx
+	txa
+	jsr HEX2
+	jsr XBLANK
+;
+;	jsr ONEKEY		; wait for operator keystroke
+	ldx XSAVE		; just to pinpoint early problems
+	ldy #0
+	rts
+
+;
+;    Print name by it's code field address in NP
+;
+PRNAM:	jsr DECNP
+	jsr DECNP
+	jsr DECNP
+	ldy #0
+PN1:	jsr DECNP
+	lda (NP),Y		; loop till D7 in name set
+	bpl PN1
+PN2:	iny
+	lda (NP),Y
+	jsr LETTER		; print letters of name field
+	lda (NP),Y
+	bpl PN2
+	jsr XBLANK
+	ldy #0
+	rts
+
+;
+;    TCOLON is called from DOCOLON to label each point
+;    where FORTH 'nests' one level.
+;
+TCOLON:	stx XSAVE
+	lda W
+	sta NP			; locate the name of the called word
+	lda W+1
+	sta NP+1
+	jsr CRLF
+	lda #$3A		; ':
+	jsr LETTER
+	jsr XBLANK
+	jsr PRNAM
+	ldx XSAVE
+	rts
+
+;
+;    Decrement name field pointer
+;
+DECNP:	lda NP
+	bne DECNP1
+	dec NP+1
+DECNP1:	dec NP
+	rts
+
+;
+; Entry point for the main module.
+;
+resetv: 
+        ldx #$FF        ; reset stack pointer
+        txs
+
+        lda #$00        ; clear all three registers
+        tax
+        tay
+
+        pha             ; clear all flags
+        plp             
+        sei             ; disable interrupts
+        ; Turn over control to Forth
+        jmp ENTER
+
+nmiv:
+panic:
+        jmp resetv       ; Reset the whole machine
+
+irqv:
+	rti
+
+crout:
+	lda #$0a
+	jmp cout
+
+cin:
+	lda py65_getc
+	beq cin
+	rts
+
+spcout:
+	lda #$20
+	jmp cout
+
+cout:
+	and #$7F	; mask off top bit to stay an ASCII character.
+	sta py65_putc
+	rts
+
+; prints the accumulator contents in hex to the console.
+hexout:
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr _print_nybble
+	pla
+	and #$0f
+_print_nybble:
+	sed
+	clc
+	adc #$90	        	; Produce $90-$99 or $00-$05
+	adc #$40			; Produce $30-$39 or $41-$46
+	cld
+	jmp cout
+
+; =============================================================================
+; INTERRUPT VECTORS
+.advance $FFFA  ; fill with zeros so we get a complete ROM image. 
+
+.word nmiv    ; NMI vector 
+.word resetv  ; RESET vector
+.word irqv    ; IRQ vector 
