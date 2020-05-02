@@ -1,3 +1,5 @@
+include ../common.mk
+
 SOURCES =  \
 	fmath745.asm \
 	macros.asm \
