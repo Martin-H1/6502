@@ -10,7 +10,7 @@
 .alias heap_base $0400		; The heap starts on page 4.
 .alias heap_size $4000		; It's size is 16 KB.
 
-.require "../data.asm"
+.require "../../Common/data.asm"
 
 ; Main entry point for the interpreter test
 main:
@@ -281,14 +281,14 @@ read_test:
 
 .require "mockConio.asm"
 
-.require "../array.asm"
+.require "../../Common/array.asm"
 .require "../cell.asm"
-.require "../conio.asm"
+.require "../../Common/conio.asm"
 .require "../gc.asm"
-.require "../heap.asm"
+.require "../../Common/heap.asm"
 .require "../lisp65.asm"
-.require "../math16.asm"
-.require "../print.asm"
-.require "../stack.asm"
-.require "../string.asm"
-.require "../vectors.asm"
+.require "../../Common/math16.asm"
+.require "../../Common/print.asm"
+.require "../../Common/stack.asm"
+.require "../../Common/string.asm"
+.require "../../Common/vectors.asm"

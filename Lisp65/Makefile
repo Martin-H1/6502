@@ -1,29 +1,15 @@
 include ../common.mk
 
 SOURCES =  \
-	array.asm \
 	bigstack.asm \
 	cell.asm \
-	conio.asm \
-	data.asm \
 	gc.asm \
-	heap.asm \
-	lisp65.asm \
-	math16.asm \
-	print.asm \
-	stack.asm \
-	string.asm \
-	vectors.asm
+	lisp65.asm
 
 TESTS =  \
-	arrayTest \
 	cellTest \
-	conioTest \
 	gcTest \
-	heapTest \
-	lispTest \
-	mathTest \
-	stringTest
+	lispTest
 
 py65mon.rom: clean $(SOURCES) main-py65.asm
 	${OPHIS} -l py65mon.lst -m py65mon.map --65c02 main-py65.asm
@@ -33,32 +19,17 @@ debug: py65mon.rom
 
 tests: $(TESTS)
 
-arrayTest: tests/arrayTest.rom
-	${PY65MON} -m 65C02 -r tests/arrayTest.rom
-
 bigstackTest: tests/bigstackTest.rom
 	${PY65MON} -m 65C02 -r tests/bigstackTest.rom
 
 cellTest: tests/cellTest.rom
 	${PY65MON} -m 65C02 -r tests/cellTest.rom
 
-conioTest: tests/conioTest.rom
-	${PY65MON} -m 65C02 -r tests/conioTest.rom
-
 gcTest: tests/gcTest.rom
 	${PY65MON} -m 65C02 -r tests/gcTest.rom
 
-heapTest: tests/heapTest.rom
-	${PY65MON} -m 65C02 -r tests/heapTest.rom
-
 lispTest: tests/lispTest.rom
 	${PY65MON} -m 65C02 -r tests/lispTest.rom
-
-mathTest: tests/mathTest.rom
-	${PY65MON} -m 65C02 -r tests/mathTest.rom
-
-stringTest: tests/stringTest.rom
-	${PY65MON} -m 65C02 -r tests/stringTest.rom
 
 tests/%.rom : tests/%.asm $(SOURCES)
 	${OPHIS} -l $<.lst -m $<.map --65c02 $<

@@ -18,7 +18,7 @@
 ;
 ; Data segments
 ;
-.require "data.asm"
+.require "../Common/data.asm"
 
 .data BSS
 .space heap_base	$4000	; It's size is 16 KB.
@@ -66,17 +66,18 @@ _putch_impl:
 	rts
 .scend
 
-.require "array.asm"
-.require "cell.asm"
-.require "conio.asm"
-.require "gc.asm"
-.require "heap.asm"
-.require "lisp65.asm"
-.require "math16.asm"
-.require "print.asm"
-.require "stack.asm"
-.require "string.asm"
+.require "../Common/array.asm"
+.require "../Common/conio.asm"
+.require "../Common/heap.asm"
+.require "../Common/math16.asm"
+.require "../Common/print.asm"
+.require "../Common/stack.asm"
+.require "../Common/string.asm"
 
-.require "vectors.asm"
+.require "cell.asm"
+.require "gc.asm"
+.require "lisp65.asm"
+
+.require "../Common/vectors.asm"
 
 .scend
