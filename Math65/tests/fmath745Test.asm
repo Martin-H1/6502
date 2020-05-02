@@ -12,13 +12,12 @@
 .advance $c000
 
 .require "../fmath745.asm"
-.require "../macros.asm"
-.require "../print.asm"
-.require "../stack.asm"
 
 ; Main entry point for the test
 main:
 	ldx #SP0		; Reset stack pointer
+	`pushzero
+	jsr mockConioInit
 
 	.invoke pushi neg_pi
 	.invoke pushi M_PI
@@ -46,4 +45,11 @@ two:		.byte $40,$00,$00,$00
 infinity:	.byte $7f,$80,$00,$00
 neg_pi:		.byte $c0,$49,$0f,$db
 
-.require "../vectors.asm"
+.require "../../Common/tests/mockConio.asm"
+.require "../../Common/conio.asm"
+.require "../../Common/heap.asm"
+.require "../../Common/math16.asm"
+.require "../../Common/print.asm"
+.require "../../Common/stack.asm"
+.require "../../Common/string.asm"
+.require "../../Common/vectors.asm"

@@ -12,13 +12,12 @@
 .advance $c000
 
 .require "../fmath32.asm"
-.require "../macros.asm"
-.require "../print.asm"
-.require "../stack.asm"
 
 ; Main entry point for the test
 main:
 	ldx #SP0		; Reset stack pointer
+	`pushzero
+	jsr mockConioInit
 
 	; convert an integer to float
 	.invoke pushi 10
@@ -95,4 +94,11 @@ onehundred:	.byte $86,$64,$00,$00
 ten24:		.byte $8A,$40,$00,$00
 twenty48:	.byte $8B,$40,$00,$00
 
-.require "../vectors.asm"
+.require "../../Common/tests/mockConio.asm"
+.require "../../Common/conio.asm"
+.require "../../Common/heap.asm"
+.require "../../Common/math16.asm"
+.require "../../Common/print.asm"
+.require "../../Common/stack.asm"
+.require "../../Common/string.asm"
+.require "../../Common/vectors.asm"

@@ -7,13 +7,12 @@
 
 .alias RamSize   $7EFF		; default $8000 for 32 kb x 8 bit RAM
 
+.require "../../Common/data.asm"
+
 .text
 	.org $c000
 
 .require "../bcdmath.asm"
-.require "../macros.asm"
-.require "../print.asm"
-.require "../stack.asm"
 
 .macro loadargs
 	phx
@@ -43,6 +42,9 @@
 ; Main entry point for the test
 main:
 	ldx #SP0		; Reset stack pointer
+	`pushzero
+	jsr mockConioInit
+
 	`println _enter
 
 	`loadargs _half, _pi
@@ -108,4 +110,12 @@ _exit:		.byte "BCD Math Test Exit",0
 w1equals:	.byte "W1= ",0
 w2equals:	.byte ", W2= ",0
 result:		.byte "Result= ",0
-.require "../vectors.asm"
+
+.require "../../Common/tests/mockConio.asm"
+.require "../../Common/conio.asm"
+.require "../../Common/heap.asm"
+.require "../../Common/math16.asm"
+.require "../../Common/print.asm"
+.require "../../Common/stack.asm"
+.require "../../Common/string.asm"
+.require "../../Common/vectors.asm"

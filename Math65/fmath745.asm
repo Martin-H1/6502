@@ -49,6 +49,8 @@
 ;
 ; Aliases to the floating point registers and scratch area in page zero.
 ;
+.alias TMPPTR1	$FC		; working pointer used by heap functions.
+.alias FPAREA	$D9		; 25 bytes of floating point work space.
 .alias _fpreg1	FPAREA		; reg1 is at the base of the scratch area.
 .alias _fpreg2	FPAREA + $05	; reg2 is five bytes into the scratch area.
 .alias _fpreg3	FPAREA + $0A	; reg2 is ten bytes into the scratch area.
@@ -125,7 +127,7 @@ fadd32:
 	jsr _alignsgnifcd	; Otherwise align significands.
 *	jsr _add		; Add the aligned significands
 	`pushi _fpreg3		; pack up the results and return
-	`savetos tmpptr1
+	`peek tmpptr1
 	jsr _pack_freg1
 	rts
 
@@ -155,7 +157,7 @@ _add:
 ; It then calls fadd32 to do the actual computation.
 ;
 fsub32:
-	`savetos tmpptr1	; make a copy of the value
+	`peek tmpptr1		; make a copy of the value
 	`drop
 	`pushi _fpreg3		; use _fpreg3 as working space.
 	ldy #$03
@@ -184,7 +186,7 @@ fexp32:
 ; process it converts the significand to two's compliment.
 _unpack_to_freg1:
 .scope
-	.invoke savetos TMPPTR1
+	`peek TMPPTR1
 	.invoke drop
 	lda (TMPPTR1)		; Load the sign bit and bits 7-1 of exponent.
 	asl			; shift sign bit into carry bit.
@@ -315,6 +317,17 @@ _rshift:
 .scope
 	rts
 .scend
+
+;  prints a float pointed to on the stack
+printfloat:
+	`peek TMPPTR1
+	ldy #0
+*	lda (TMPPTR1), y
+	jsr printa
+	iny
+	cpy #04
+	bne -
+	rts
 
 fprintfpreg1:
 	ldy #0

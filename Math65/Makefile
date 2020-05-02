@@ -1,11 +1,7 @@
 include ../common.mk
 
 SOURCES =  \
-	fmath745.asm \
-	macros.asm \
-	print.asm \
-	stack.asm \
-	vectors.asm
+	fmath745.asm
 
 TESTS =  \
 	bcdmathTest \
@@ -30,5 +26,5 @@ release:
 
 clean:
 	-$(RM) *.rom
-	-$(RM) tests/*.rom
-	-$(RM) tests/*.lst
+	-$(RM) tests$/*.rom
+	-$(RM) tests$/*.lst

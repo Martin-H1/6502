@@ -137,6 +137,9 @@
 	.alias ptr3	$f6
 	.alias pptr	$f8
 
+.alias TMPPTR1	$FC		; working pointer used by heap functions.
+.alias TMPPTR2	$FA		; working pointer used by heap functions.
+
 ;
 ;   misc equates
 ;
@@ -228,6 +231,60 @@ _loop:	ldy _1,x
 	dex
 	bpl _loop
 .macend
+
+.macro printsign
+	bpl _over
+	lda #'\-
+	jsr putch
+_over:
+.macend
+
+; prints a BCD floating point number.
+; pointer on the stack, no outputs.
+printbcd:
+	`peek TMPPTR1
+	`drop
+	lda (TMPPTR1)		; Load the sign byte
+	`printsign
+	ldy #2			; Skip over the exponent for now.
+	lda (TMPPTR1),y		; The first digit needs special handling.
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr _print_nybble
+	lda #'.
+	jsr putch
+	pla
+	and #$0f
+	jsr _print_nybble
+	iny
+*	lda (TMPPTR1),y		; Do the remaining digits.
+	jsr printa
+	iny
+	cpy #8
+	bne -
+	lda #$65		; Print exponent
+	jsr putch
+	lda (TMPPTR1)		; print the sign of the exponent.
+	asl
+	`printsign
+	lda (TMPPTR1)		; print the exponent.
+	and #$0f
+	jsr _print_nybble
+	ldy #1
+	lda (TMPPTR1), y
+	jsr printa
+	rts
+
+_print_nybble:
+	sed
+	clc
+	adc #$90	        	; Produce $90-$99 or $00-$05
+	adc #$40			; Produce $30-$39 or $41-$46
+	cld
+	jmp putch
 
 ;
 ;   main bcd floating point math package

@@ -45,6 +45,9 @@
 ; Use scope operator to hide all internal entry points.
 .scope
 
+.alias TMPPTR1	$FC		; working pointer used by heap functions.
+.alias TMPPTR2	$FE		; working pointer used by heap functions.
+
 .macro copy4
 	ldx #$03
 _loop:
@@ -96,7 +99,7 @@ flog32:
 ;
 float32:
 	; copy integer from stack to mantissa
-	`savetos m1
+	`peek m1
 	`drop
 	phx
 	jsr _float
@@ -153,7 +156,7 @@ fexp32:
 	rts
 
 _copyarg:
-	`savetos TMPPTR1
+	`peek TMPPTR1
 	`drop
 	ldy #$03
 *	lda (TMPPTR1), y
@@ -163,9 +166,9 @@ _copyarg:
 	rts
 
 _copyargs:
-	`savetos TMPPTR1
+	`peek TMPPTR1
 	`drop
-	`savetos TMPPTR2
+	`peek TMPPTR2
 	`drop
 	ldy #$03
 *	lda (TMPPTR1), y
@@ -176,6 +179,17 @@ _copyargs:
 	bpl -
 	rts
 
+;  prints a float pointed to on the stack
+printfloat:
+	`peek TMPPTR1
+	ldy #0
+*	lda (TMPPTR1), y
+	jsr printa
+	iny
+	cpy #04
+	bne -
+	rts
+
 ;
 ; Rankin and Woz code starts here, but reformated for Ophis assembler.
 ;
@@ -183,6 +197,7 @@ _copyargs:
 ;
 ; Aliases to page zero transfer locations (total 25 bytes).
 ;
+.alias FPAREA	$D9		; 25 bytes of floating point work space.
 .alias sign	FPAREA + $00
 .alias x2	FPAREA + $01	; exponent 2
 .alias m2	FPAREA + $02	; mantissa 2
