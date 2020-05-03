@@ -10,6 +10,12 @@
 ;
 ; Data segments
 ;
+.data BSS
+.space BRKvector 3		; holds application break vector
+.space RESvector 3		; holds application reset vector & checksum
+.space INTvector 3		; holds application interrupt vector & checksum
+.space NMIvector 3		; holds application NMI vector & checksum
+.text
 
 ;
 ; Macros
@@ -31,14 +37,16 @@ resetv:
 
         pha             ; clear all flags
         plp             
-irqv:	jmp main
+	jmp main
+
+irqv:	jmp (INTvector)
 .scend
 
 ; redirect the NMI interrupt vector here to be safe, but this 
 ; should never be reached for py65mon.
 nmiv:
 panic:
-        jmp resetv
+        jmp (NMIvector)
 
 ; Interrupt vectors.
 .advance $FFFA
