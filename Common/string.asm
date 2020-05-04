@@ -10,6 +10,7 @@
 ;
 
 ; Character set (ASCII)
+.alias AscBell	$07	; bell (Control-G) ASCII character
 .alias AscBS	$08	; backspace ASCII character
 .alias AscCC	$03	; break (Control-C) ASCII character
 .alias AscCR	$0D	; carriage return ASCII character
