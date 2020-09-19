@@ -38,6 +38,8 @@
 monitorInit:
 	`pushi monitorBreak
 	`pop INTvector
+	`pushi monitorNmi
+	`pop NMIvector
 	cli
 	rts
 
@@ -123,5 +125,11 @@ Printreg4:
 _regDataMsg:
 	.byte" PC=  A=  X=  Y=  S=  P= (NVRBDIZC)="
 .scend
+
+;
+; NMI handler stub
+;
+monitorNmi:
+	rti
 
 .scend
