@@ -41,7 +41,8 @@ _over:
 	jsr compare16
 
 	; for signed numbers, NOS < TOS if C=0
-	bcc _else
+	beq _else
+	bmi _else
 .macend
 
 .macro if_greater16
