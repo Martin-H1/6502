@@ -23,19 +23,19 @@
 .alias CELL	$02	; Size of word and cell on the stack.
 
 ; offset from X register for NOS and TOS.
-.alias TOS_LSB	$01
-.alias TOS_MSB	$02
-.alias NOS_LSB	$03
-.alias NOS_MSB	$04
-.alias THS_LSB	$05
-.alias THS_MSB	$06
+.alias TOS_LSB	$00
+.alias TOS_MSB	$01
+.alias NOS_LSB	$02
+.alias NOS_MSB	$03
+.alias THS_LSB	$04
+.alias THS_MSB	$05
 
 ;
 ; Data segments
 ;
 .data ZPSTACK
 .space SPMAX	$00		; top of parameter (data) stack
-.space _SSPACE	$7F
+.space _SSPACE	$80
 .space SP0	$00		; bottom of parameter (data) stack
 
 .data ZPDATA
