@@ -16,12 +16,14 @@
 .advance $c000
 
 .require "../monitor.asm"
+.require "../../Common/acia.asm"
 .require "../../Common/conio.asm"
 .require "../../Common/heap.asm"
 .require "../../Common/math16.asm"
 .require "../../Common/print.asm"
 .require "../../Common/stack.asm"
 .require "../../Common/string.asm"
+.require "../../Common/via.asm"
 .require "../../Common/tests/mockConio.asm"
 
 ; Main entry point for the test
@@ -29,6 +31,12 @@ main:
 	ldx #SP0		; Reset stack pointer
 	`pushzero
 	jsr mockConIOInit
+	`println _name
+	jsr monitorInit
 	brk
+	nop
+
+_name:	.byte "*** break test ***",0
+
 
 .require "../../Common/vectors.asm"

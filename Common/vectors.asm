@@ -53,4 +53,4 @@ panic:
 
 .word nmiv    ; NMI vector 
 .word resetv  ; RESET vector
-.word irqv    ; IRQ vector 
+.word irqv    ; IRQ vector

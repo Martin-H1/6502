@@ -17,13 +17,13 @@
 ; Data segments
 ;
 .data BSS
-.space PCH 1
-.space PCL 1
-.space ACC 1
-.space XREG 1
-.space YREG 1
-.space SPTR 1
-.space PREG 1
+.space _PCH 1
+.space _PCL 1
+.space _ACC 1
+.space _XREG 1
+.space _YREG 1
+.space _SPTR 1
+.space _PREG 1
 .text
 
 ;
@@ -36,6 +36,9 @@
 
 ; Main entry point for the monitor.
 monitorInit:
+	`pushi monitorBreak
+	`pop INTvector
+	cli
 	rts
 
 monitorCold:
@@ -50,28 +53,28 @@ monitorInput:
 ; Break instruction handler.
 ; Saves machine state and enters monitor.
 monitorBreak:
-	sta ACC			; save A
-	stx Xreg		; save X
-	sty Yreg		; save Y
+	sta _ACC		; save A
+	stx _Xreg		; save X
+	sty _Yreg		; save Y
         pla
-	sta Preg		; save P
+	sta _Preg		; save P
 	pla			; PCL
 	plx			; PCH
 	sec
 	sbc #$02
-	sta PCL			; backup to BRK cmd
+	sta _PCL		; backup to BRK cmd
 	bcs Brk2
 	dex
-Brk2:	stx PCH			; save PC
+Brk2:	stx _PCH		; save PC
 	tsx			; get stack pointer
-	stx SPtr		; save stack pointer
+	stx _SPtr		; save stack pointer
 	lda #AscBell
 	jsr putch		; Beep speaker
-	jsr PrintReg		; dump register contents
+	jsr _printRegln		; dump register contents
 	ldx #$FF
 	txs			; clear stack
 	cli			; enable interrupts again
-	jmp Monitor		; start the monitor
+	jmp monitorWarm		; start the monitor
 
 ; Delay loop
 _delay:
@@ -79,8 +82,46 @@ _delay:
 
 ; function to print CR, register contents, and crlf.
 _printCRRegln:
+	`printcr			; Lead with a CR
 
 ; function to print register contents, and crlf.
 _printRegln:
+.scope
+	ldx #$ff
+	ldy #$ff
+_loop:
+	iny
+	lda _regDataMsg,y
+	jsr putch
+	cmp #$3D			; "="
+	bne _loop
+*	inx
+	cpx #$07
+	beq Printreg3			; done with first 6
+	lda _PCH,x
+	jsr printa
+	cpx #$00
+	bne _loop
+	bra -
+Printreg3:
+	dex
+	lda _PCH,x			; get Preg
+	ldx #$08
+Printreg4:
+	rol
+	tay
+	lda #$31
+	bcs +
+	dec
+*	jsr putch
+	tya
+	dex
+	bne Printreg4
+	`printcr
 	rts
+
+_regDataMsg:
+	.byte" PC=  A=  X=  Y=  S=  P= (NVRBDIZC)="
+.scend
+
 .scend
