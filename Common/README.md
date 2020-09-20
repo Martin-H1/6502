@@ -12,7 +12,6 @@ Prerequisites
 
 Files
 ======
-* .gitignore - prevents target files from getting checked into git.
 * LICENSE - MIT license file.
 * Makefile - makefile to issue all of the commands.
 * README.md - this file.
@@ -20,7 +19,6 @@ Files
 * conio.asm - simple console I/O routines which include redirection.
 * data.asm - defines data segments and their origin address.
 * heap.asm - a simple heap.
-* main-py65.asm - main for debug testing.
 * math16.asm - word sized math routines.
 * print.asm - useful print routines.
 * stack.asm - small page zero stack macros and routines.
