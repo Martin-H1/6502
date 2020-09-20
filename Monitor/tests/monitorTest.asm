@@ -24,6 +24,7 @@
 .require "../../Common/stack.asm"
 .require "../../Common/string.asm"
 .require "../../Common/via.asm"
+.require "../../Common/video.asm"
 .require "../../Common/tests/mockConio.asm"
 
 ; Main entry point for the test
