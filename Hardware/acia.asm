@@ -1,5 +1,5 @@
 ; -----------------------------------------------------------------------------
-; VIA init functions.
+; ACIA init functions.
 ; Took code from Rich Cini's SBC OS and made it generic for an ACIA
 ; at any address.
 ; Martin Heermance <mheermance@gmail.com>

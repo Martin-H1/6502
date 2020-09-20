@@ -16,15 +16,15 @@
 .advance $c000
 
 .require "../monitor.asm"
-.require "../../Common/acia.asm"
 .require "../../Common/conio.asm"
 .require "../../Common/heap.asm"
 .require "../../Common/math16.asm"
 .require "../../Common/print.asm"
 .require "../../Common/stack.asm"
 .require "../../Common/string.asm"
-.require "../../Common/via.asm"
-.require "../../Common/video.asm"
+.require "../../Hardware/acia.asm"
+.require "../../Hardware/via.asm"
+.require "../../Hardware/video.asm"
 .require "../../Common/tests/mockConio.asm"
 
 ; Main entry point for the test
