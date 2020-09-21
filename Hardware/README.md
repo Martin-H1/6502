@@ -15,6 +15,7 @@ Files
 * README.md - this file.
 * acia.asm - 65C51 driver
 * pckeyboard.asm - driver for PS/2 keyboard
+* tikeyboard.asm - driver for the TI 99/4a keyboard.
 * via.asm - 65C22 VIA driver
 * video.asm - driver for onboard AVR video
 
