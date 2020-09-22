@@ -1,9 +1,9 @@
 # 6502
- A collection of 6502 projects in a monorepo
+A collection of 6502 projects in a monorepo
 
 Overview
 ======
-The purpose of this project is to collect my 6502 projects into a single repo and share resuable code from a common directory.
+The purpose of this project is to collect my and others 6502 projects into a single repo, and refactor code into resuable modules when possible.
 
 Prerequisites
 ======
@@ -16,7 +16,18 @@ Files
 * common.mk - common make rules used by unit makefiles.
 * LICENSE - MIT license file.
 * README.md - this file.
-## Common = reusable data structures and functions.
+
+Common
+======
+Reusable data structures and functions, including a simple BIOS.
+
+Hardware
+======
+Reusable modules to interface with hardware devices such as the 65C22, 65C51, PS/2 Keyboards, etc.
+
+FigForth
+======
+A port of Fig Forth for Ophis and runs under Py65Mon.
 
 Notes:
 ======
