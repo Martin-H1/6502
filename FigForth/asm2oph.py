@@ -132,7 +132,7 @@ class Tokenizer:
         elif first.isalpha() or first == "_" or first == ".":
             self.workToken.type = Token.IDENTIFIER
             self.workToken.appendChar(first)
-        elif first.isnumeric() or first == "$":
+        elif first.isnumeric() or first == "$" or first == "%":
             self.workToken.type = Token.LITERAL
             self.workToken.appendChar(first)
         elif first in self.separators:
@@ -147,7 +147,7 @@ class Tokenizer:
                 first = "^"
 
             self.appendToken(Token.OPERATOR, first)
-        elif first == "'":
+        elif first == "'" or first == '"':
             self.workToken.type = Token.STRING
         return rest
 
@@ -188,9 +188,7 @@ class Tokenizer:
     def processString(self, start, first, rest, line):
         if first != "'" and first != "\"":
             self.workToken.appendChar(first)
-        elif first == "\"":
-            self.workToken.appendChar("\\\"")
-        else:
+        elif first == "'" or first == "\"":
             self.appendToken(Token.STRING, self.workToken.value)
         return rest
 
@@ -210,7 +208,7 @@ class Tokenizer:
         # Reset tokenizer state.
         self.workToken = Token()
 
-opcodes = [".alias", ".BYTE", ".WORD", ".org", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", "CPY", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY", "JMP", "JSR", "LDA", "LDX", "LDY", "LSR", "NOP", "ORA", "PHA", "PHP", "PLA", "PLP", "ROL", "ROR", "RTI", "RTS", "SBC", "SEC", "SED", "SEI", "STA", "STX", "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"]
+opcodes = [".alias", ".BYTE", ".WORD", ".org", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", "CPY", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY", "JMP", "JSR", "LDA", "LDX", "LDY", "LSR", "NOP", "ORA", "PHA", "PHP", "PLA", "PLP", "ROL", "ROR", "RTI", "RTS", "SBC", "SEC", "SED", "SEI", "STA", "STX", "STY", "STZ", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA", ".byte", ".word", ".org", "adc", "and", "asl", "bcc", "bcs", "beq", "bit", "bmi", "bne", "bpl", "brk", "bvc", "bvs", "clc", "cld", "cli", "clv", "cmp", "cpx", "cpy", "dec", "dex", "dey", "eor", "inc", "inx", "iny", "jmp", "jsr", "lda", "ldx", "ldy", "lsr", "nop", "ora", "pha", "php", "pla", "plp", "rol", "ror", "rti", "rts", "sbc", "sec", "sed", "sei", "sta", "stx", "sty", "stz", "tax", "tay", "tsx", "txa", "txs", "tya"]
 
 operators = ["+", "-", "*", "<", ">", "#", "(", ")", ",", "="]
 
