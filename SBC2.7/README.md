@@ -9,7 +9,8 @@ I created for FigForth. I then diffed the resultant binaries to ensure
 they were byte for byte identical. The formatting was messed up in a
 few places, and the extension changed to oph, but the resulting binary
 is identical.
----Rich's Readme.txt contents---
+Rich's Readme.txt contents
+======
 Here are my SBC-2 Operating System Source Files.
 
 They include:
