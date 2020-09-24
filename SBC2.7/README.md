@@ -1,4 +1,5 @@
-# SBC2.7
+SBC2.7
+======
 Rich Cini's additions to Daryl Rictor's 6502 SBC2 ROM. Originally
 built using TASS.EXE inside a Dos box using the commands:
 mount c c:\...\SBC2.7
