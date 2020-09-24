@@ -831,7 +831,7 @@ LAB_XERR:
 	JSR LAB_CRLF		; print CR/LF
 
 	LDA LAB_BAER,X		; get error message pointer low byte
-	LDY LAB_BAER+1,X		; get error message pointer high byte
+	LDY LAB_BAER+1,X	; get error message pointer high byte
 	JSR LAB_18C3		; print null terminated string from memory
 
 	JSR LAB_1491		; flush stack and clear continue flag
@@ -8848,7 +8848,7 @@ ERR_ID:	.byte "Illegal direct",$00
 ERR_TM:	.byte "Type mismatch",$00
 ERR_LS:	.byte "String too long",$00
 ERR_ST:	.byte "String too complex",$00
-ERR_CN:	.byte "Can'tcontinue",$00		;"
+ERR_CN:	.byte "Can't continue",$00		;"
 ERR_UF:	.byte "Undefined function",$00
 ERR_LD:	.byte "LOOP without DO",$00
 ERR_UV:	.byte "Undefined variable",$00		; tested and works (see code LAB_1D8B)
