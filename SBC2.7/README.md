@@ -1,10 +1,17 @@
 # SBC2.7
-Rich Cini's additions to Daryl Rictor's 6502 SBC2 ROM.
-Build using TASS.EXE inside a Dos box using the commands:
+Rich Cini's additions to Daryl Rictor's 6502 SBC2 ROM. Originally
+built using TASS.EXE inside a Dos box using the commands:
 mount c c:\...\SBC2.7
 c:
 tass /c SBC.ASM
----Rich's Readme.txt contents---
+But that was too annoying, so I ported it to Ophis using the translator
+I created for FigForth. I then diffed the resultant binaries to ensure
+they were byte for byte identical. The formatting was messed up in a
+few places, and the extension changed to oph, but the resulting binary
+is identical.
+
+Rich's Readme.txt contents
+======
 Here are my SBC-2 Operating System Source Files.
 
 They include:
@@ -36,4 +43,3 @@ sbc25.rom  -  the 32k raw binary object file (only the upper 20k are used)
 Good luck!
 
 Daryl
-
