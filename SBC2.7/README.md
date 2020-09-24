@@ -1,5 +1,4 @@
-SBC2.7
-======
+# SBC2.7
 Rich Cini's additions to Daryl Rictor's 6502 SBC2 ROM. Originally
 built using TASS.EXE inside a Dos box using the commands:
 mount c c:\...\SBC2.7
@@ -10,6 +9,7 @@ I created for FigForth. I then diffed the resultant binaries to ensure
 they were byte for byte identical. The formatting was messed up in a
 few places, and the extension changed to oph, but the resulting binary
 is identical.
+
 Rich's Readme.txt contents
 ======
 Here are my SBC-2 Operating System Source Files.
