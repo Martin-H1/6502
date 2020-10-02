@@ -1,6 +1,8 @@
 ; -----------------------------------------------------------------------------
 ; VIA init functions.
-; Took code from Rich Cini's SBC OS and made it generic.
+; Took code from Rich Cini's SBC OS and made it generic using macros and
+; compile time dependency injection. Since most systems have two VIA's, I
+; create two init routines.
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
 
@@ -10,7 +12,7 @@
 ; Aliases
 ;
 
-; I/O Locations for the 6522 VIA chip
+; I/O Locations for the 6522 VIA chip registers
 .alias VIA_PRB		$00
 .alias VIA_PRA		$01
 .alias VIA_DDRB		$02
@@ -38,33 +40,27 @@
 .text
 
 ;
+; Macros
+;
+.macro viaInit
+	lda #00
+	ldy #VIA_PCR		; zero out lower regsiters
+_loop:	sta _1,y
+	dey
+	bpl _loop 
+	lda #$7f		; init two upper registers.
+	sta _1 + VIA_IFR
+	sta _1 + VIA_IER
+.macend
+
+;
 ; Functions
 ;
-
-;
-; 6522 VIA I/O Support Routines
-;
-viaInit:
-	`pushi _viaInitData
-	`swap
-	`pushi $0e
-	jsr memcpy
+via1Init:
+	`viaInit VIA1_BASE
 	rts
 
-_viaInitData:
-	.byte $00		; prb  '00000000'
-	.byte $00		; pra  "00000000'
-	.byte $00		; ddrb 'iiiiiiii'
-	.byte $00		; ddra 'iiiiiiii'
-	.byte $00		; tacl  
-	.byte $00		; tach  
-	.byte $00		; tall  
-	.byte $00		; talh  
-	.byte $00		; t2cl
-	.byte $00		; t2ch
-	.byte $00		; sr
-	.byte $00		; acr
-	.byte $00		; pcr
-	.byte $7f		; ifr
-	.byte $7f		; ier
+via2Init:
+	`viaInit VIA2_BASE
+	rts
 .scend

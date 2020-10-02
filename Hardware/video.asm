@@ -10,12 +10,11 @@
 ;
 ; Aliases
 ;
-.alias _VIA2BASE	$7f60
-.alias _VIA2DDRB	_VIA2BASE + VIA_DDRB
-.alias _VIA2ACR		_VIA2BASE + VIA_ACR
-.alias _VIA2IER		_VIA2BASE + VIA_IER
-.alias _VIA2PRB		_VIA2BASE + VIA_PRB
-.alias _VIA2SR		_VIA2BASE + VIA_SR
+.alias _VIA2DDRB	VIA2_BASE + VIA_DDRB
+.alias _VIA2ACR		VIA2_BASE + VIA_ACR
+.alias _VIA2IER		VIA2_BASE + VIA_IER
+.alias _VIA2PRB		VIA2_BASE + VIA_PRB
+.alias _VIA2SR		VIA2_BASE + VIA_SR
 
 ;----------------------------------------------------------------------
 ; Call this once to initialize the interface
