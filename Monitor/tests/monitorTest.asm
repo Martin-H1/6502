@@ -22,6 +22,7 @@
 .require "../../Common/print.asm"
 .require "../../Common/stack.asm"
 .require "../../Common/string.asm"
+.require "../../Hardware/sbc27io.asm"
 .require "../../Hardware/acia.asm"
 .require "../../Hardware/via.asm"
 .require "../../Hardware/video.asm"

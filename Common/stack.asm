@@ -180,8 +180,10 @@ _over:
 .macro putInd
 	lda (_1)
 	sta TOS_LSB,x
-	`incw _1
-	lda (_1)
+	inc _1
+	bne _over
+	inc _1+1
+_over:	lda (_1)
 	sta TOS_MSB,x
 .macend
 

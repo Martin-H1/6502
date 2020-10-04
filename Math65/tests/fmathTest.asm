@@ -9,6 +9,8 @@
 
 .alias RamSize   $7EFF		; default $8000 for 32 kb x 8 bit RAM
 
+.require "../../Common/data.asm"
+
 .advance $c000
 
 .require "../fmath32.asm"

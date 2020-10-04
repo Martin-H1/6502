@@ -9,19 +9,6 @@
 ; Aliases
 ;
 
-; Character set (ASCII)
-.alias AscBell	$07	; bell (Control-G) ASCII character
-.alias AscBS	$08	; backspace ASCII character
-.alias AscCC	$03	; break (Control-C) ASCII character
-.alias AscCR	$0D	; carriage return ASCII character
-.alias AscDEL	$7F	; DEL ASCII character
-.alias AscESC	$1B	; Escape ASCII character
-.alias AscFF	$0C	; Formfeed ASCII character
-.alias AscLF	$0A	; line feed ASCII character
-.alias AscSP	$20	; space ASCII character
-.alias AscTAB	$09	; tab ASCII character
-.alias AscVT	$0B	; vertical tab ASCII character
-
 ;
 ; Data segments
 ;

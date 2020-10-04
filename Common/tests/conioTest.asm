@@ -123,9 +123,6 @@ ungetch_test:
 .require "mockConio.asm"
 
 .require "../conio.asm"
-.require "../heap.asm"
-.require "../math16.asm"
 .require "../print.asm"
 .require "../stack.asm"
-.require "../string.asm"
 .require "../vectors.asm"

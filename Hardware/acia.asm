@@ -43,7 +43,7 @@
 _loop:	lda _1 + ACIA_STA		; Serial port status
 	and #$08			; is recvr full
 	beq -				; no char to get
-	lda _1 + ACIA1_DAT		; get chr
+	lda _1 + ACIA_DAT		; get chr
 .macend
 
 ;
@@ -85,7 +85,7 @@ acia1Input:
 	rts
 
 acia1InputAsync:
-	`aciaInputAsnc ACIA1_BASE
+	`aciaInputAsync ACIA1_BASE
 	rts
 
 acia1Output:

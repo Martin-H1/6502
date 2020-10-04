@@ -16,11 +16,8 @@
 .advance $c000
 
 .require "../../Common/conio.asm"
-.require "../../Common/heap.asm"
-.require "../../Common/math16.asm"
 .require "../../Common/print.asm"
 .require "../../Common/stack.asm"
-.require "../../Common/string.asm"
 .require "../sbc27io.asm"
 .require "../via.asm"
 .require "../video.asm"
