@@ -15,8 +15,6 @@
 ; Data segments
 ;
 .data ZPDATA
-.space _STDOUT	2	; pointer to console output routine.
-.space _STDIN	2	; pointer to console input routine.
 .space _TMPPTR1	2	; working pointer
 
 .data BSS
@@ -24,6 +22,8 @@
 .space _tibEnd	$00	; end marker to compute buffer size.
 .space _writeIdx $01	; current write position in the buffer.
 .space _readIdx	$01	; current read position in the buffer.
+.space _STDOUT	2	; pointer to console output routine.
+.space _STDIN	2	; pointer to console input routine.
 .space _echo	$01	; control echo during line edit mode.
 
 .text
@@ -124,6 +124,8 @@ cputs:
         rts
 .scend
 
+; gets a character from the terminal input buffer, or gets more
+; characters if it is empty.
 getch:
 .scope
 	phy
@@ -138,6 +140,7 @@ getch:
 	rts
 .scend
 
+; puts a character in the accumulator back into the terminal input buffer.
 ungetch:
 .scope
 	phy
@@ -149,6 +152,8 @@ ungetch:
 	rts
 .scend
 
+; puts a character in accumulator to stdout by doing an indirect jump to
+; that handler. The handler will RTS to our caller.
 putch:
 .scope
         jmp (_STDOUT)
