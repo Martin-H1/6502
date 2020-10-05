@@ -14,9 +14,6 @@
 ;
 ; Data segments
 ;
-.data ZPDATA
-.space _TMPPTR1	2	; working pointer
-
 .data BSS
 .space _tib	$50	; a line buffer for buffered reads.
 .space _tibEnd	$00	; end marker to compute buffer size.
@@ -111,17 +108,13 @@ _getch:
 ; string to the console using putch.
 cputs:
 .scope
-	`pop _TMPPTR1
-	phy                     ; save Y register
-        ldy #$00                ; index
-
-*       lda (_TMPPTR1),y	; get the string via address from zero page
-        beq +			; if it is a zero, we quit and leave
-        jsr putch	        ; if not, write one character
-        iny                     ; get the next byte
-        bra -
-*       ply
-        rts
+_loop:	lda (TOS_LSB,x)		; get the string via address from zero page
+	beq _exit		; if it is a zero, we quit and leave
+	jsr putch		; if not, write one character
+	`incTos			; get the next byte
+	bra _loop
+_exit:	`drop
+	rts
 .scend
 
 ; gets a character from the terminal input buffer, or gets more
