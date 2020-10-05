@@ -90,7 +90,7 @@ echo_test:
 	`println _name
 	`pushi _data
 	jsr mockConioInit
-	`pushTrue
+	lda #$ff
 	jsr conioSetEcho
 	jsr cgets
 	`printcr

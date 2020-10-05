@@ -814,7 +814,7 @@ _exit:	`nip			; drop environment parameter
 ; output - implicit output stream.
 repl:
 .scope
-	`pushTrue
+	lda #$ff
 	jsr conioSetEcho
 	`println _welcome
 	stx _XSAVE		; save X and S to allow exception catching.

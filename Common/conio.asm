@@ -64,13 +64,11 @@ conIoInit:
 .scend
 
 ; Enable or disable character echo during line editing mode.
-; input - boolean on stack
+; input - boolean in accumulator.
 ; output - none
 conioSetEcho:
 .scope
-	lda TOS_LSB,x
 	sta _echo
-	`drop
 	rts
 .scend
 
