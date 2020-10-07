@@ -10,9 +10,15 @@ SOURCES =  \
 	video.asm
 
 TESTS =  \
+	aciaTest \
+	viaTest \
 	videoTest
 
 tests: $(TESTS)
+
+aciaTest: tests/aciaTest.rom
+
+viaTest: tests/viaTest.rom
 
 videoTest: tests/videoTest.rom
 

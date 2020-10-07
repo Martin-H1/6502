@@ -1,10 +1,10 @@
 ; -----------------------------------------------------------------------------
-; Test for sbc 2.7 onboard video. Must be run on real hardware.
+; Test for sbc 2.7 onboard ACIA. Must be run on real hardware.
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
 
 .org $8000
-.outfile "tests/videoTest.rom"
+.outfile "tests/aciaTest.rom"
 
 .alias RamSize   $7EFF		; default $8000 for 32 kb x 8 bit RAM
 
@@ -15,33 +15,26 @@
 .require "../../Common/conio.asm"
 .require "../../Common/print.asm"
 .require "../../Common/stack.asm"
+.require "../acia.asm"
 .require "../sbc27io.asm"
 .require "../via.asm"
-.require "../video.asm"
 
 ; Main entry point for the test
 main:
 	ldx #SP0		; Reset stack pointer
+	jsr acia1Init
 	jsr via1Init
 	jsr via2Init
-	jsr videoInit
-	`pushi $00		; Initialize the console vectors.
-	`pushi videoOutput
+	`pushi acia1Input	; Initialize the console vectors.
+	`pushi acia1Output
 	jsr conIoInit
-	ldy #$00
-*	dey
-	bne -
-	jsr video_test
+	jsr acia1_test
 	brk
 
 .scope
-_name:	.byte "*** video test ***",0
-video_test:
-	`println _name
-	`printcr
-
-	`println _name
-	`printcr
+_msg:	.byte "*** ACIA 1 test ***",0
+acia1_test:
+	`println _msg
 	rts
 .scend
 

@@ -4,7 +4,7 @@
 ; -----------------------------------------------------------------------------
 
 .org $8000
-.outfile "tests/videoTest.rom"
+.outfile "tests/viaTest.rom"
 
 .alias RamSize   $7EFF		; default $8000 for 32 kb x 8 bit RAM
 
@@ -12,36 +12,40 @@
 
 .advance $c000
 
-.require "../../Common/conio.asm"
-.require "../../Common/print.asm"
-.require "../../Common/stack.asm"
 .require "../sbc27io.asm"
 .require "../via.asm"
-.require "../video.asm"
 
 ; Main entry point for the test
 main:
-	ldx #SP0		; Reset stack pointer
 	jsr via1Init
 	jsr via2Init
-	jsr videoInit
-	`pushi $00		; Initialize the console vectors.
-	`pushi videoOutput
-	jsr conIoInit
-	ldy #$00
-*	dey
-	bne -
-	jsr video_test
+	jsr via2_test
 	brk
 
 .scope
-_name:	.byte "*** video test ***",0
-video_test:
-	`println _name
-	`printcr
-
-	`println _name
-	`printcr
+; Set VIA2 Port B bit 0 to output and toggle bits.
+via2_test:
+	ldy #$16
+_loop:	lda VIA2_BASE + VIA_DDRB
+	ora #$01
+	sta VIA2_BASE + VIA_DDRB
+	lda VIA2_BASE + VIA_PRB
+	eor #$01
+	sta VIA2_BASE + VIA_PRB
+	jsr _delay
+	dey
+	bpl _loop
+	rts
+_delay:	phy
+	ldy #$00
+	phx
+	ldx #$00
+*	dex
+	bne -
+	dey
+	bne -
+	plx
+	ply
 	rts
 .scend
 

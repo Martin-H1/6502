@@ -27,17 +27,19 @@
 
 ; Interrupt handler for RESET button, also boot sequence. 
 .scope
-resetv: 
-        ldx #$FF        ; reset stack pointer
-        txs
+resetv:
+	sei		; diable interupts, until interupt vectors are set.
+	cld		; clear decimal mode
+	ldx #$FF	; reset stack pointer
+	txs
 
-        lda #$00        ; clear all three registers
-        tax
-        tay
+	lda #$00	; clear all three registers
+	tax
+	tay
 
-        pha             ; clear all flags
-        plp             
-	jmp main
+	pha		; clear all flags
+	plp
+	jmp main	; go to monitor or main program initialization.
 
 irqv:	jmp (INTvector)
 .scend
@@ -46,7 +48,7 @@ irqv:	jmp (INTvector)
 ; should never be reached for py65mon.
 nmiv:
 panic:
-        jmp (NMIvector)
+	jmp (NMIvector)
 
 ; Interrupt vectors.
 .advance $FFFA

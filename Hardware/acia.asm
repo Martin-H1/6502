@@ -42,7 +42,7 @@
 .macro aciaInput
 _loop:	lda _1 + ACIA_STA		; Serial port status
 	and #$08			; is recvr full
-	beq -				; no char to get
+	beq _loop			; no char to get
 	lda _1 + ACIA_DAT		; get chr
 .macend
 
