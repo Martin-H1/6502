@@ -35,6 +35,9 @@ main:
 _msg:	.byte "*** ACIA 1 test ***",0
 acia1_test:
 	`println _msg
+_loop:	jsr acia1Input
+	jsr acia1Output
+	bra _loop
 	rts
 .scend
 
