@@ -41,6 +41,7 @@ main:
 	jsr less_test
 	jsr equals_test
 	jsr andor_test
+	jsr minmax_test
 	brk
 
 true: .byte "True!",0
@@ -215,6 +216,31 @@ andor_test:
 	`pushi $f0f0
 	jsr and16
 	jsr printstack
+	`drop
+	rts
+.scend
+
+.scope
+_name:	.byte "*** min max test ***",0
+minmax_test:
+	`println _name
+	`pushi $00f0
+	`pushi $0f00
+	jsr min16
+	jsr printstack
+
+	`pushi $f0f0
+	jsr min16
+	jsr printstack
+
+	`pushi $00f0
+	jsr max16
+	jsr printstack
+
+	`pushi $0ff0
+	jsr max16
+	jsr printstack
+	`drop
 	rts
 .scend
 

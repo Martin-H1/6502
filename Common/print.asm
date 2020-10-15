@@ -88,4 +88,28 @@ printtosln:
 	`printcr
 	rts
 
+; prints the value at the top of stack.
+printTosSigned:
+	lda TOS_MSB,x
+	bpl printtos		; if positive print as usual.
+	lda #$2d
+	jsr putch
+	`dup			; duplicate and
+	sec			; calculate 0 - tos
+	lda #$00
+	sbc TOS_LSB,x
+	sta TOS_LSB,x
+	lda #$00
+	sbc TOS_MSB,x
+	sta TOS_MSB,x
+	jsr printtos
+	`drop
+	rts
+
+; prints the value at the top of stack.
+printTosSignedln:
+	jsr printTosSigned
+	`printcr
+	rts
+
 .scend

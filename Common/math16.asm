@@ -159,7 +159,7 @@ mul16:
 	jsr abs16
 	jsr umul16
 	pla			; Apply the sign to the result.
-        bpl +
+	bpl +
 	jsr neg16
 *	rts
 .scend
@@ -404,6 +404,44 @@ _while:	lsr NOS_MSB,x
 	bne _while
 _done:	`drop
 	rts
+.scend
+
+; Compares TOS and NOS keeps the one that is smaller. Adapted from Lance A.
+; Leventhal "6502 Assembly Language Subroutines." Negative Flag indicateds
+; which number is larger. See also 
+; http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html 
+min16:
+.scope
+	lda TOS_LSB,x
+	cmp NOS_LSB,x		; compare LSB's. This sets the carry flag.
+	lda TOS_MSB,x		; subtract MSB's with carry.
+	sbc NOS_MSB,x
+	bvc _noov		; no overflow, so skip the next step
+	eor #$80		; handle overflow because we use signed numbers
+_noov:	bpl _keepnos		; if negative, NOS is larger and needs to be dumped
+	`putNosFromTos		; move TOS to NOS
+_keepnos:
+	`drop
+	rts
+.scend
+
+; Compare TOS and NOS and keeps the one that is larger. Adapted from Lance A. 
+; Leventhal "6502 Assembly Language Subroutines". Negative Flag indicates 
+; which number is larger. See also 
+; http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+max16:
+.scope
+	lda TOS_LSB,x
+	cmp NOS_LSB,x		; compare LSB's. This sets the carry flag.
+	lda TOS_MSB,x		; subtract MSB's with carry.
+	sbc NOS_MSB,x
+	bvc _noov		; no overflow, so skip the next step
+	eor #$80		; handle overflow because we use signed numbers
+_noov:	bmi _keepnos		; if negative, NOS is larger and needs to be kept
+	`putNosFromTos
+_keepnos:
+	`drop
+        rts
 .scend
 
 .scend
