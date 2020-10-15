@@ -1,12 +1,16 @@
 include ../common.mk
 
 SOURCES =  \
-	fmath745.asm
+	bcdmath.asm \
+	fmath32.asm \
+	fmath745.asm \
+	itrig16.asm
 
 TESTS =  \
 	bcdmathTest \
 	fmath745Test \
-	fmathTest
+	fmathTest \
+	itrig16Test
 
 tests: $(TESTS)
 
@@ -18,6 +22,9 @@ fmathTest: tests/fmathTest.rom
 
 fmath745Test: tests/fmath745Test.rom
 	${PY65MON} -m 65C02 -r tests/fmath745Test.rom
+
+itrig16Test: tests/itrig16Test.rom
+	${PY65MON} -m 65C02 -r tests/itrig16Test.rom
 
 tests/%.rom : tests/%.asm $(SOURCES)
 	${OPHIS} -l $<.lst --65c02 $<
