@@ -286,6 +286,24 @@ div16:
 	rts
 .scend
 
+; Arithmetically divides a number by two with bit shifting.
+; Handles signed numbers including negative which is tricky.
+; input -16 bit dividend on stack
+; output - sixteen bit result
+divByTwo16:
+	lda TOS_LSB,x
+	and TOS_MSB,x
+	inc			; if -1 this will be zero
+	bne +
+	sta TOS_LSB,x		; zero out TOS
+	sta TOS_MSB,x
+	rts
+*	lda TOS_MSB,x
+	asl
+	ror TOS_MSB,x
+	ror TOS_LSB,x
+	rts
+
 ; Computes signed mod of two 16 bit quantities.
 ; input - 16 bit dividend at NOS and divisor at TOS.
 ; output - 16 modulus

@@ -42,6 +42,7 @@ main:
 	jsr equals_test
 	jsr andor_test
 	jsr minmax_test
+	jsr divByTwo_test
 	brk
 
 true: .byte "True!",0
@@ -239,6 +240,34 @@ minmax_test:
 
 	`pushi $0ff0
 	jsr max16
+	jsr printstack
+	`drop
+	rts
+.scend
+
+.scope
+_name:	.byte "*** div by two test ***",0
+divByTwo_test:
+	`println _name
+	`pushi $ffff
+	jsr divByTwo16
+	jsr printstack
+
+	jsr divByTwo16
+	jsr printstack
+	`drop
+
+	`pushi $f0f0
+	jsr divByTwo16
+	jsr printstack
+	`drop
+
+	`pushi $0010
+	jsr divByTwo16
+	jsr printstack
+	jsr divByTwo16
+	jsr printstack
+	jsr divByTwo16
 	jsr printstack
 	`drop
 	rts
