@@ -396,6 +396,7 @@ or16:
 ; 4 bit of u so we shift maximal of 16 bit
 lshift16:
 .scope
+	phy
 	lda TOS_LSB,x
 	and #%00001111
 	beq _done         ; if it is zero, don't do anything
@@ -405,6 +406,7 @@ _while:	asl NOS_LSB,x
 	dey
 	bne _while
 _done:	`drop
+	ply
 	rts
 .scend
 
@@ -412,6 +414,7 @@ _done:	`drop
 ; 4 bit of u so we can maximally move 16 bit.
 rshift16:
 .scope
+	phy
 	lda TOS_LSB,x
 	and #%00001111
 	beq _done         ; if it is zero, don't do anything
@@ -421,6 +424,7 @@ _while:	lsr NOS_MSB,x
 	dey
 	bne _while
 _done:	`drop
+	ply
 	rts
 .scend
 
