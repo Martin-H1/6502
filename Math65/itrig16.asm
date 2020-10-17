@@ -19,6 +19,15 @@
 .alias STRAIGHT_ANGLE	$0200
 .alias FULL_ROTATION	$0400
 
+;
+; Data segments
+;
+.data BSS
+.space _approximation	2	; binary search workspace
+.space _correction	2
+
+.text				; revert back to code segment.
+
 ; clampAngle16 takes brads as input and returns an angle that is positive and
 ; always less than a FULL_ROTATION. That way we can be sure to use the angle
 ; with the trig functions.
@@ -169,36 +178,37 @@ asin16:
 .scope
 	phy
 	jsr clampSin16
-	`pushZero		; push the first approximation and correction
+	`pushZero
+	`pop _approximation	; initialized the approximation and correction.
 	`pushi ACUTE_ANGLE
 	`pushi 2
 	jsr lshift16		; 4*
+	`pop _correction
 	ldy #$0C		; refine approximation and correction iteratively
-_do:	`mrot			; move the correction to the bottom of stack.
-	`over			; compare the sine of the approximation to the value.
-	`over
+_do:	`dup			; compare the sine of the approximation to the value.
+	`push _approximation
 	jsr divByTwo16
 	jsr divByTwo16		; 4/
 	jsr sin16
 	`if_greater16
-	`rot			; The approximation is too small, add the correction.
-        `dup
-	`mrot
+	`push _approximation	; The approximation is too small, add the correction.
+	`push _correction
 	jsr add16
+	`pop _approximation
 	bra _endif
 _else:
-	`rot			; The approximation is too large, so decrease it.
-	`dup
-	`mrot
+	`push _approximation	; The approximation is too large, so decrease it.
+	`push _correction
 	jsr sub16
+	`pop _approximation
 _endif:
-	`swap			; half the correction factor for next iterration.
+	`push _correction	; half the correction factor for next iterration.
 	jsr divByTwo16
+	`pop _correction
 	dey
 	bpl _do
-	`drop			; return only the approximation.
-	`swap
-	`drop
+	`drop			; drop input and return only the approximation.
+	`push _approximation
 	jsr divByTwo16		; divide by 4 to return an angle.
 	jsr divByTwo16
 	ply
@@ -220,6 +230,7 @@ acos16:
 atan216:
 .scope
 .scope
+	phy
 	`tosZero?		; Handle crossing x axis case
 	bne _endif
 	`drop
@@ -228,6 +239,7 @@ atan216:
 	lda TOS_MSB,x
 	bpl +
 	jsr neg16
+	ply
 *	rts
 _endif:
 .scend
@@ -275,6 +287,7 @@ _endif:
 	bpl +			; if x's sign was negative, then
 	`pushi STRAIGHT_ANGLE	; move results into 3 & 4 quadrants.
 	jsr add16
+	ply
 *	rts
 .scend
 
