@@ -25,6 +25,8 @@
 .data BSS
 .space _approximation	2	; binary search workspace
 .space _correction	2
+.space _xsave		2
+.space _ysave		2
 
 .text				; revert back to code segment.
 
@@ -176,42 +178,38 @@ clampSin16:
 ; before return.
 asin16:
 .scope
-	phy
 	jsr clampSin16
 	`pushZero
 	`pop _approximation	; initialized the approximation and correction.
 	`pushi ACUTE_ANGLE
 	`pushi 2
-	jsr lshift16		; 4*
-	`pop _correction
-	ldy #$0C		; refine approximation and correction iteratively
+	jsr lshift16		; unsigned 4 * because to bits are zero.
+	`pop _correction	; refine approximation and correction iteratively by
 _do:	`dup			; compare the sine of the approximation to the value.
 	`push _approximation
+	jsr divByTwo16		; Signed divide by four
 	jsr divByTwo16
-	jsr divByTwo16		; 4/
 	jsr sin16
 	`if_greater16
 	`push _approximation	; The approximation is too small, add the correction.
 	`push _correction
 	jsr add16
-	`pop _approximation
 	bra _endif
 _else:
-	`push _approximation	; The approximation is too large, so decrease it.
+	`push _approximation	; The approximation is too large, subtract the correction.
 	`push _correction
 	jsr sub16
-	`pop _approximation
 _endif:
-	`push _correction	; half the correction factor for next iterration.
-	jsr divByTwo16
-	`pop _correction
-	dey
-	bpl _do
+	`pop _approximation
+	lsr _correction+1	; Correction factor is positive, so use bit shifts
+	ror _correction		; to halve it for the next iterration.
+	lda _correction+1
+	ora _correction
+	bne _do			; Continue until the correction is zero.
 	`drop			; drop input and return only the approximation.
 	`push _approximation
-	jsr divByTwo16		; divide by 4 to return an angle.
+	jsr divByTwo16		; Signed divide by 4 to return an angle.
 	jsr divByTwo16
-	ply
 	rts
 .scend
 
@@ -229,65 +227,56 @@ acos16:
 ; output - binary radian angle
 atan216:
 .scope
-.scope
-	phy
 	`tosZero?		; Handle crossing x axis case
-	bne _endif
+	bne _dosearch
 	`drop
 	`pushi RIGHT_ANGLE
-	`swap			; adjust sign based upon y's sign.
-	lda TOS_MSB,x
+	`swap
+	lda TOS_MSB,x		; sign based upon y's sign.
 	bpl +
 	jsr neg16
-	ply
-*	rts
-_endif:
-.scend
-	`dup			; save x to use its sign to adjust results
-	`mrot
-	`swap
-	; 15 lshift swap /	; push the first approximation and correction
-	`pushZero
+*	`drop			; y no longer needed.
+	rts
+_dosearch:
+	`pop _xsave		; save x to use its sign to adjust results
+	`pop _ysave		; save x to use its sign to adjust results
+	`pushZero		; push the first approximation and correction
+	`pop _approximation
 	`pushi ACUTE_ANGLE
 	`pushi 2		; 4*
 	jsr lshift16
-	ldy #13			; refine approximation and correction iteratively
+	`pop _correction
+	ldy #$08		; refine approximation and correction iteratively
 _do:
-	`mrot			; move the correction to the bottom of stack.
-	`over			; compare the sine of the approximation to the value.
-	`over
+	`push _approximation	; compare the sine of the approximation to the value.
 	jsr divByTwo16		; 4/
 	jsr divByTwo16
 	jsr tan16
 .scope
 	`if_greater16
-	`rot			; The approximation is too small, add the correction.
-	`dup
-	`mrot
+	`push _approximation	; The approximation is too small, add the correction.
+	`push _correction
 	jsr add16
 	bra _endif
 _else:
-	`rot			; The approximation is too large, so decrease it.
-	`dup
-	`mrot
+	`push _approximation	; The approximation is too large, so decrease it.
+	`push _correction
 	jsr sub16
 _endif:
 .scend
-	`swap			; half the correction factor for next iterration.
-	jsr divByTwo16		; 2/
-	dey
-	bpl _do
-	`drop			; return only the approximation.
-	`swap
-	`drop
+	`pop _approximation
+	lsr _correction+1	; Correction factor is positive, so use bit shifts
+	ror _correction		; to halve it for the next iterration.
+	lda _correction+1
+	ora _correction
+	bne _do			; Continue until the correction is zero.
+	`push _approximation	; return only the approximation.
 	jsr divByTwo16		; 4/
 	jsr divByTwo16
-	`swap
-	lda TOS_MSB,x
+	lda _xsave+1
 	bpl +			; if x's sign was negative, then
 	`pushi STRAIGHT_ANGLE	; move results into 3 & 4 quadrants.
 	jsr add16
-	ply
 *	rts
 .scend
 
