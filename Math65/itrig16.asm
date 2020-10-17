@@ -211,6 +211,7 @@ acos16:
 	`pushi RIGHT_ANGLE
 	jsr sub16
 	jsr neg16
+	rts
 
 ; 13-bit fixed point four-quadrant arctangent. Given Cartesian vector (x, y),
 ; finds the angle subtended by the vector and the positive x-axis.

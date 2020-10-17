@@ -24,6 +24,7 @@ main:
 	jsr cosTest
 	jsr tanTest
 	jsr asinTest
+	jsr acosTest
 	brk
 
 _anglesToTest:
@@ -144,6 +145,37 @@ _test:	`print _msg1
 	jsr printTosSigned
 	`print _msg2
 	jsr asin16
+	jsr printTosSignedln
+	`drop
+	rts
+.scend
+
+_cosineValuesToTest:
+	.word $A57E, $0000, $0295, $257E, $5A82, $7fff, $8001
+
+.scope
+_name:	.byte "*** acos16 test ***",0
+_msg1:	.byte "asin of ",0
+_msg2:	.byte " = ",0
+acosTest:
+	`println _name
+	ldy #$00
+_loop:	lda _cosineValuesToTest,y
+	`pusha
+	iny
+	lda _cosineValuesToTest,y
+	sta TOS_MSB,x
+	jsr _test
+	iny
+	cpy #14
+	bmi _loop
+	`printcr
+	rts
+
+_test:	`print _msg1
+	jsr printTosSigned
+	`print _msg2
+	jsr acos16
 	jsr printTosSignedln
 	`drop
 	rts
