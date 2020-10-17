@@ -1,5 +1,5 @@
 ; -----------------------------------------------------------------------------
-; Sine table for 16 bit integer trig functions scaled by 32,767 with 256
+; Sine table for 16 bit integer trig functions scaled by 2^15 with 256
 ; samples per quadrent and indexed using binary radians.
 ; See https://en.wikipedia.org/wiki/Binary_scaling for more information.
 ; Martin Heermance <mheermance@gmail.com>
@@ -45,7 +45,9 @@ _else:
 ; Sine takes brads as input and returns a scaled sine value. However, to
 ; save memeory the sine table only contains one quadrant, angles in other
 ; quadrants are mapped onto the first with sign modification if needed.
-; Note: be sure to use 32 bit multiply with the return value!
+; 
+; Note: Be sure to use 32 bit multiply with the return value and scale
+; down by 15 bits.
 ; input - angle to take sine of.
 ; output - result
 sin16:
@@ -98,34 +100,60 @@ cos16:
 	jsr sin16
 	rts
 
-; tangent can be derived from sin / cos. The good news is both sine and
-; cosine are fast table lookups, so this is only a division more expensive.
-; But both our sin and cos values are scaled quantities, a division result
-; in an unscaled quantity. To prevent this, extend to 32 bits, and use bit
-; shifting to multiply by the scale factor again.
+; tangent is done using table lookup for speed rather than sin / cos. In addition,
+; tangent goes to infinity as you approach a multiple of a right angle, and that's easier
+; to handle without division. This function returns a value with 1 sign bit, 4 whole number,
+; and 12 bits fraction. This allows for meaningful values up to 10 brads from the X axis.
+; Consumer will need to bit shift after use.
 ; input - angle to take tanget of.
 ; output - result
 tan16:
-	`peekToR
-	jsr sin16
-	`pushZero		; extend to 32 bits to set up for multiply
-	`swap			; Forth uses little endian, so this is a multiply.
-	lda TOS_MSB,x		; Now divide by two and we multiplied by 32,767!
-	cmp #$80		; copy sign bit of A into carry
-        ror TOS_MSB,x
-        ror TOS_LSB,x
-        ror NOS_MSB,x
-        ror NOS_LSB,x
-	`pushFromR
-	jsr cos16
-	jsr smrem		; 32 bit divided by 16 for 16 bit result.
-	`nip
+.scope
+	jsr clampAngle16	; make pos and < full rotation
+	lda TOS_MSB,x		; determine angle quadrent.
+	and #>[RIGHT_ANGLE+STRAIGHT_ANGLE]
+	beq _quadrentOne
+	cmp #$01
+	beq _quadrentTwo
+	cmp #$02
+	beq _quadrentThree
+	bra _quadrentFour
+
+_quadrentOne:
+_tableLookup:
+	asl TOS_LSB,x		; convert angle to offset into sin table.
+	rol TOS_MSB,x
+	`pushi tangentTable
+	jsr add16
+	`fetch			; sineTable [ 2 * angle ]
 	rts
 
-.alias MAX_SIN RIGHT_ANGLE
-.alias MIN_SIN [[$ffff^RIGHT_ANGLE]+1]
+_quadrentTwo:
+	`pushi STRAIGHT_ANGLE	; reflect angle and lookup.
+	`swap
+	jsr sub16
+	jsr _tableLookup
+	jmp neg16		; correct sign
+
+_quadrentThree:
+	`pushi STRAIGHT_ANGLE	; rotate angle and lookup
+	jsr sub16
+	jmp _tableLookup
+
+_quadrentFour:
+	`pushi FULL_ROTATION
+	`swap
+	jsr sub16
+	jsr _tableLookup
+	jmp neg16
+.scend
+
+.alias MAX_SIN $7fff
+.alias MIN_SIN [[$ffff^MAX_SIN]+1]
 
 ; clamps n between max and min to prevent inverse trig function overflow.
+; Note in this code I used 16 bit values, so this function isn't strictly
+; needed. But if you reduce the resolution below 16 bits it is required.
 ; ( n -- clamped_value )
 clampSin16:
 	`pushi MIN_SIN
@@ -139,18 +167,18 @@ clampSin16:
 ; before return.
 asin16:
 .scope
+	phy
 	jsr clampSin16
 	`pushZero		; push the first approximation and correction
 	`pushi ACUTE_ANGLE
-;; 	4*
-	;; refine approximation and correction iteratively
-	ldy #13
-_do:	
-        `mrot			; move the correction to the bottom of stack.
-
+	`pushi 2
+	jsr lshift16		; 4*
+	ldy #$0C		; refine approximation and correction iteratively
+_do:	`mrot			; move the correction to the bottom of stack.
 	`over			; compare the sine of the approximation to the value.
 	`over
-	;; 2/ 2/
+	jsr divByTwo16
+	jsr divByTwo16		; 4/
 	jsr sin16
 	`if_greater16
 	`rot			; The approximation is too small, add the correction.
@@ -165,13 +193,15 @@ _else:
 	jsr sub16
 _endif:
 	`swap			; half the correction factor for next iterration.
-	;;  2/
+	jsr divByTwo16
 	dey
 	bpl _do
 	`drop			; return only the approximation.
 	`swap
 	`drop
-	;; 2/ 2/
+	jsr divByTwo16		; divide by 4 to return an angle.
+	jsr divByTwo16
+	ply
 	rts
 .scend
 
@@ -206,16 +236,16 @@ _endif:
 	; 15 lshift swap /	; push the first approximation and correction
 	`pushZero
 	`pushi ACUTE_ANGLE
-	; 4*
-
+	`pushi 2		; 4*
+	jsr lshift16
 	ldy #13			; refine approximation and correction iteratively
 _do:
 	`mrot			; move the correction to the bottom of stack.
 	`over			; compare the sine of the approximation to the value.
 	`over
-	;; 2/ 2/
+	jsr divByTwo16		; 4/
+	jsr divByTwo16
 	jsr tan16
-	;; >
 .scope
 	`if_greater16
 	`rot			; The approximation is too small, add the correction.
@@ -231,13 +261,14 @@ _else:
 _endif:
 .scend
 	`swap			; half the correction factor for next iterration.
-	;; 2/
+	jsr divByTwo16		; 2/
 	dey
 	bpl _do
 	`drop			; return only the approximation.
 	`swap
 	`drop
-	;; 2/ 2/
+	jsr divByTwo16		; 4/
+	jsr divByTwo16
 	`swap
 	lda TOS_MSB,x
 	bpl +			; if x's sign was negative, then
@@ -246,42 +277,74 @@ _endif:
 *	rts
 .scend
 
-; arcsine can be computed via a binary search of the table and
-; then right shfiting the index to get the angle.
-
 sineTable:
-	.word $0000, $00C9, $0192, $025B, $0324, $03ED, $04B6, $057E
-	.word $0647, $0710, $07D9, $08A1, $096A, $0A32, $0AFB, $0BC3
-	.word $0C8B, $0D53, $0E1B, $0EE3, $0FAB, $1072, $1139, $1200
-	.word $12C7, $138E, $1455, $151B, $15E1, $16A7, $176D, $1833
-	.word $18F8, $19BD, $1A82, $1B46, $1C0B, $1CCF, $1D93, $1E56
-	.word $1F19, $1FDC, $209F, $2161, $2223, $22E4, $23A6, $2467
-	.word $2527, $25E7, $26A7, $2767, $2826, $28E5, $29A3, $2A61
-	.word $2B1E, $2BDB, $2C98, $2D54, $2E10, $2ECC, $2F86, $3041
-	.word $30FB, $31B4, $326D, $3326, $33DE, $3496, $354D, $3603
-	.word $36B9, $376F, $3824, $38D8, $398C, $3A3F, $3AF2, $3BA4
-	.word $3C56, $3D07, $3DB7, $3E67, $3F16, $3FC5, $4073, $4120
-	.word $41CD, $4279, $4325, $43D0, $447A, $4523, $45CC, $4674
-	.word $471C, $47C3, $4869, $490E, $49B3, $4A57, $4AFA, $4B9D
-	.word $4C3F, $4CE0, $4D80, $4E20, $4EBF, $4F5D, $4FFA, $5097
-	.word $5133, $51CE, $5268, $5301, $539A, $5432, $54C9, $555F
-	.word $55F4, $5689, $571D, $57B0, $5842, $58D3, $5963, $59F3
-	.word $5A81, $5B0F, $5B9C, $5C28, $5CB3, $5D3D, $5DC6, $5E4F
-	.word $5ED6, $5F5D, $5FE2, $6067, $60EB, $616E, $61F0, $6271
-	.word $62F1, $6370, $63EE, $646B, $64E7, $6562, $65DD, $6656
-	.word $66CE, $6745, $67BC, $6831, $68A5, $6919, $698B, $69FC
-	.word $6A6C, $6ADB, $6B4A, $6BB7, $6C23, $6C8E, $6CF8, $6D61
-	.word $6DC9, $6E30, $6E95, $6EFA, $6F5E, $6FC0, $7022, $7082
-	.word $70E1, $7140, $719D, $71F9, $7254, $72AE, $7306, $735E
-	.word $73B5, $740A, $745E, $74B1, $7503, $7554, $75A4, $75F3
-	.word $7640, $768D, $76D8, $7722, $776B, $77B3, $77F9, $783F
-	.word $7883, $78C6, $7908, $7949, $7989, $79C7, $7A04, $7A41
-	.word $7A7C, $7AB5, $7AEE, $7B25, $7B5C, $7B91, $7BC4, $7BF7
-	.word $7C29, $7C59, $7C88, $7CB6, $7CE2, $7D0E, $7D38, $7D61
-	.word $7D89, $7DB0, $7DD5, $7DF9, $7E1C, $7E3E, $7E5E, $7E7E
-	.word $7E9C, $7EB9, $7ED4, $7EEF, $7F08, $7F20, $7F37, $7F4C
-	.word $7F61, $7F74, $7F86, $7F96, $7FA6, $7FB4, $7FC1, $7FCD
-	.word $7FD7, $7FE0, $7FE8, $7FEF, $7FF5, $7FF9, $7FFC, $7FFE
+	.word $0000, $00C9, $0192, $025B, $0324, $03ED, $04B6, $057F
+	.word $0647, $0710, $07D9, $08A2, $096A, $0A33, $0AFB, $0BC3
+	.word $0C8B, $0D53, $0E1B, $0EE3, $0FAB, $1072, $1139, $1201
+	.word $12C8, $138E, $1455, $151B, $15E2, $16A8, $176D, $1833
+	.word $18F8, $19BD, $1A82, $1B47, $1C0B, $1CCF, $1D93, $1E56
+	.word $1F19, $1FDC, $209F, $2161, $2223, $22E5, $23A6, $2467
+	.word $2528, $25E8, $26A8, $2767, $2826, $28E5, $29A3, $2A61
+	.word $2B1F, $2BDC, $2C98, $2D55, $2E11, $2ECC, $2F87, $3041
+	.word $30FB, $31B5, $326E, $3326, $33DE, $3496, $354D, $3604
+	.word $36BA, $376F, $3824, $38D8, $398C, $3A40, $3AF2, $3BA5
+	.word $3C56, $3D07, $3DB8, $3E68, $3F17, $3FC5, $4073, $4121
+	.word $41CE, $427A, $4325, $43D0, $447A, $4524, $45CD, $4675
+	.word $471C, $47C3, $4869, $490F, $49B4, $4A58, $4AFB, $4B9E
+	.word $4C3F, $4CE1, $4D81, $4E21, $4EBF, $4F5E, $4FFB, $5097
+	.word $5133, $51CE, $5269, $5302, $539B, $5433, $54CA, $5560
+	.word $55F5, $568A, $571D, $57B0, $5842, $58D4, $5964, $59F3
+	.word $5A82, $5B10, $5B9D, $5C29, $5CB4, $5D3E, $5DC7, $5E50
+	.word $5ED7, $5F5E, $5FE3, $6068, $60EC, $616F, $61F1, $6271
+	.word $62F2, $6371, $63EF, $646C, $64E8, $6563, $65DD, $6657
+	.word $66CF, $6746, $67BD, $6832, $68A6, $6919, $698C, $69FD
+	.word $6A6D, $6ADC, $6B4A, $6BB8, $6C24, $6C8F, $6CF9, $6D62
+	.word $6DCA, $6E30, $6E96, $6EFB, $6F5F, $6FC1, $7023, $7083
+	.word $70E2, $7141, $719E, $71FA, $7255, $72AF, $7307, $735F
+	.word $73B5, $740B, $745F, $74B2, $7504, $7555, $75A5, $75F4
+	.word $7641, $768E, $76D9, $7723, $776C, $77B4, $77FA, $7840
+	.word $7884, $78C7, $7909, $794A, $798A, $79C8, $7A05, $7A42
+	.word $7A7D, $7AB6, $7AEF, $7B26, $7B5D, $7B92, $7BC5, $7BF8
+	.word $7C29, $7C5A, $7C89, $7CB7, $7CE3, $7D0F, $7D39, $7D62
+	.word $7D8A, $7DB0, $7DD6, $7DFA, $7E1D, $7E3F, $7E5F, $7E7F
+	.word $7E9D, $7EBA, $7ED5, $7EF0, $7F09, $7F21, $7F38, $7F4D
+	.word $7F62, $7F75, $7F87, $7F97, $7FA7, $7FB5, $7FC2, $7FCE
+	.word $7FD8, $7FE1, $7FE9, $7FF0, $7FF6, $7FFA, $7FFD, $7FFE
+	.word $7FFF
+
+tangentTable:
+.word $0000, $000C, $0019, $0025, $0032, $003E, $004B, $0058
+	.word $0064, $0071, $007D, $008A, $0097, $00A3, $00B0, $00BD
+	.word $00C9, $00D6, $00E3, $00EF, $00FC, $0109, $0116, $0122
+	.word $012F, $013C, $0149, $0156, $0163, $0170, $017D, $018A
+	.word $0197, $01A4, $01B1, $01BE, $01CB, $01D9, $01E6, $01F3
+	.word $0200, $020E, $021B, $0229, $0236, $0244, $0251, $025F
+	.word $026D, $027B, $0288, $0296, $02A4, $02B2, $02C0, $02CE
+	.word $02DC, $02EA, $02F9, $0307, $0316, $0324, $0333, $0341
+	.word $0350, $035F, $036D, $037C, $038B, $039A, $03AA, $03B9
+	.word $03C8, $03D8, $03E7, $03F7, $0406, $0416, $0426, $0436
+	.word $0446, $0456, $0467, $0477, $0488, $0498, $04A9, $04BA
+	.word $04CB, $04DC, $04ED, $04FF, $0510, $0522, $0534, $0546
+	.word $0558, $056A, $057D, $058F, $05A2, $05B5, $05C8, $05DB
+	.word $05EE, $0602, $0616, $062A, $063E, $0652, $0667, $067B
+	.word $0690, $06A5, $06BB, $06D0, $06E6, $06FC, $0712, $0729
+	.word $0740, $0757, $076E, $0786, $079D, $07B5, $07CE, $07E7
+	.word $07FF, $0819, $0832, $084C, $0867, $0881, $089C, $08B7
+	.word $08D3, $08EF, $090C, $0928, $0946, $0963, $0981, $09A0
+	.word $09BF, $09DE, $09FE, $0A1F, $0A40, $0A61, $0A83, $0AA6
+	.word $0AC9, $0AED, $0B11, $0B36, $0B5B, $0B82, $0BA9, $0BD0
+	.word $0BF9, $0C22, $0C4C, $0C76, $0CA2, $0CCE, $0CFB, $0D29
+	.word $0D58, $0D88, $0DB9, $0DEC, $0E1F, $0E53, $0E88, $0EBF
+	.word $0EF7, $0F30, $0F6B, $0FA7, $0FE4, $1023, $1064, $10A6
+	.word $10EA, $112F, $1177, $11C0, $120C, $1259, $12A9, $12FB
+	.word $1350, $13A7, $1401, $145D, $14BD, $151F, $1585, $15EE
+	.word $165B, $16CC, $1741, $17B9, $1837, $18B9, $1940, $19CD
+	.word $1A5F, $1AF7, $1B96, $1C3B, $1CE8, $1D9D, $1E5A, $1F20
+	.word $1FF0, $20CA, $21AF, $22A1, $23A0, $24AD, $25C9, $26F7
+	.word $2837, $298C, $2AF7, $2C7B, $2E1A, $2FD8, $31B8, $33BD
+	.word $35EE, $384F, $3AE7, $3DBD, $40DC, $444F, $4823, $4C6A
+	.word $5139, $56AC, $5CE6, $6414, $6C74, $7658, $7FFF, $7FFF
+	.word $7FFF, $7FFF, $7FFF, $7FFF, $7FFF, $7FFF, $7FFF, $7FFF
 	.word $7FFF
 
 .scend

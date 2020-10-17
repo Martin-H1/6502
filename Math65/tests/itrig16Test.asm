@@ -23,6 +23,7 @@ main:
 	jsr sinTest
 	jsr cosTest
 	jsr tanTest
+	jsr asinTest
 	brk
 
 _anglesToTest:
@@ -97,20 +98,52 @@ tanTest:
 	`println _name
 	`pushi [[$ffff^[ACUTE_ANGLE]]+1]
 _loop:	`dup
-	`pushi ACUTE_ANGLE
+	`pushi STRAIGHT_ANGLE
 	`if_less16
 	`dup
 	jsr _test
-	`pushi [5*DEGREE_ANGLE]
+	`pushi [10*DEGREE_ANGLE]
 	jsr add16
 	bra _loop
 _else:	`printcr
+	`drop
 	rts
 
 _test:	`print _msg1
 	jsr printTosSigned
 	`print _msg2
 	jsr tan16
+	jsr printTosSignedln
+	`drop
+	rts
+.scend
+
+_sineValuesToTest:
+	.word $A57E, $0000, $0295, $257E, $5A82, $7fff, $8001
+
+.scope
+_name:	.byte "*** asin16 test ***",0
+_msg1:	.byte "asin of ",0
+_msg2:	.byte " = ",0
+asinTest:
+	`println _name
+	ldy #$00
+_loop:	lda _sineValuesToTest,y
+	`pusha
+	iny
+	lda _sineValuesToTest,y
+	sta TOS_MSB,x
+	jsr _test
+	iny
+	cpy #14
+	bmi _loop
+	`printcr
+	rts
+
+_test:	`print _msg1
+	jsr printTosSigned
+	`print _msg2
+	jsr asin16
 	jsr printTosSignedln
 	`drop
 	rts
