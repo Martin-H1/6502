@@ -27,7 +27,7 @@ itrig16Test: tests/itrig16Test.rom
 	${PY65MON} -m 65C02 -r tests/itrig16Test.rom
 
 tests/%.rom : tests/%.asm $(SOURCES)
-	${OPHIS} -l $<.lst --65c02 $<
+	${OPHIS} -l $<.lst -m $<.map --65c02 $<
 
 release:
 
@@ -35,3 +35,4 @@ clean:
 	-$(RM) *.rom
 	-$(RM) tests$/*.rom
 	-$(RM) tests$/*.lst
+	-$(RM) tests$/*.map
