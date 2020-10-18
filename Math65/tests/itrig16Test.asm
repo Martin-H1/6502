@@ -25,6 +25,7 @@ main:
 	jsr tanTest
 	jsr asinTest
 	jsr acosTest
+	jsr atanTest
 	brk
 
 _anglesToTest:
@@ -119,13 +120,13 @@ _test:	`print _msg1
 	rts
 .scend
 
-_sineValuesToTest:
-	.word $A57E, $0000, $0295, $257E, $5A82, $7fff, $8001
-
 .scope
 _name:	.byte "*** asin16 test ***",0
 _msg1:	.byte "asin of ",0
 _msg2:	.byte " = ",0
+_sineValuesToTest:
+	.word $A57E, $0000, $0295, $257E, $5A82, $7fff, $8001
+
 asinTest:
 	`println _name
 	ldy #$00
@@ -150,13 +151,13 @@ _test:	`print _msg1
 	rts
 .scend
 
-_cosineValuesToTest:
-	.word $A57E, $0000, $0295, $257E, $5A82, $7fff, $8001
-
 .scope
 _name:	.byte "*** acos16 test ***",0
 _msg1:	.byte "asin of ",0
 _msg2:	.byte " = ",0
+_cosineValuesToTest:
+	.word $A57E, $0000, $0295, $257E, $5A82, $7fff, $8001
+
 acosTest:
 	`println _name
 	ldy #$00
@@ -181,7 +182,45 @@ _test:	`print _msg1
 	rts
 .scend
 
+.scope
+_name:	.byte "*** atan test ***",0
+_msg1:	.byte "atan2 of [X = ",0
+_msg2:	.byte ", Y = ",0
+_msg3:	.byte "] = ",0
+_xVals:	.byte 3, 3, 4, 0,  4, $fb, $fb,   0, 4
+_yVals:	.byte 0, 4, 4, 4, $fc,  0, $fb, $fb, $fb
+_yValsEnd:
+.alias _yValsCount [_yValsEnd - _yVals]
+
+atanTest:
+	`println _name
+	ldy #$00
+_loop:	`pushZero
+	lda _yVals,y
 	sta TOS_MSB,x
+	`pushZero
+	lda _xVals,y
+	sta TOS_MSB,x
+	jsr _test
+	iny
+	cpy #_yValsCount
+	bmi _loop
+_exit:	jsr printstack
+	rts
+
+_test:	`print _msg1
+	jsr printTosSigned
+	`print _msg2
+	`swap
+	jsr printTosSigned
+	`print _msg3
+	`swap
+	jsr atan216
+	jsr printTosSignedln
+	`drop
+	rts
+.scend
+
 .require "../../Common/tests/mockConio.asm"
 .require "../../Common/conio.asm"
 .require "../../Common/math16.asm"

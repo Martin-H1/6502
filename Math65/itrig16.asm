@@ -25,9 +25,9 @@
 .data BSS
 .space _approximation	2	; binary search workspace
 .space _correction	2
-.space _xsave		2
-.space _ysave		2
-
+.space _x		2
+.space _y		2
+.space _loopNum		1
 .text				; revert back to code segment.
 
 ; clampAngle16 takes brads as input and returns an angle that is positive and
@@ -211,6 +211,16 @@ _endif:
 	jsr divByTwo16		; Signed divide by 4 to return an angle.
 	jsr divByTwo16
 	rts
+
+; 11 bit precomputed correction values for binary search
+.alias _asinCorrectionsCount [[[_asinCorectionsTableEnd - _asinCorectionsTable] / 2]
+_asinCorectionsTable:
+	.word $0200, $0100 	; 45, 22.5
+	.word $0080, $0040	; 11.25, 5.625
+	.word $0020, $0010	; 2.8125, 1.40625
+	.word $0008, $0004	; 0.706125, 0.3515625
+	.word $0002, $0001	; 0.17578125, 0.087890625
+_asinCorectionsTableEnd:
 .scend
 
 ; acos is defined in terms of asin with coordinate rotation.
@@ -221,63 +231,81 @@ acos16:
 	jsr neg16
 	rts
 
-; 13-bit fixed point four-quadrant arctangent. Given Cartesian vector (x, y),
-; finds the angle subtended by the vector and the positive x-axis.
+; Fixed point four-quadrant arctangent implemented using CORDIC. Given Cartesian
+; vector (x, y), it finds the angle subtended by the vector and the positive x-axis.
 ; input - 16 bit signed Y at NOS and 16 bit signed X at TOS
 ; output - binary radian angle
 atan216:
 .scope
-	`tosZero?		; Handle crossing x axis case
-	bne _dosearch
-	`drop
-	`pushi RIGHT_ANGLE
-	`swap
-	lda TOS_MSB,x		; sign based upon y's sign.
-	bpl +
-	jsr neg16
-*	`drop			; y no longer needed.
-	rts
-_dosearch:
-	`pop _xsave		; save x to use its sign to adjust results
-	`pop _ysave		; save x to use its sign to adjust results
-	`pushZero		; push the first approximation and correction
-	`pop _approximation
-	`pushi ACUTE_ANGLE
-	`pushi 2		; 4*
-	jsr lshift16
-	`pop _correction
-	ldy #$08		; refine approximation and correction iteratively
-_do:
-	`push _approximation	; compare the sine of the approximation to the value.
-	jsr divByTwo16		; 4/
-	jsr divByTwo16
-	jsr tan16
-.scope
-	`if_greater16
-	`push _approximation	; The approximation is too small, add the correction.
-	`push _correction
-	jsr add16
+	phy
+	`pop _x
+	`pop _y
+	`pushZero		; Zero for first approximation of SumAngle at TOS.
+	stz _loopNum		; initialize loop and bitshift count.
+_do:	jsr _getAngle		; Use stack like an RPM calculator and push args for later.
+	`push _x
+	jsr _getYShifted	; SumAngle, angle for iteration, _x, (Y >> LoopNum)
+	lda _y+1		; if _y is positive
+	bmi _else
+	    jsr add16		; Calc _x+(Y >> LoopNum) but update _x after _y calcs.
+	    `push _y		; _y is done in sequence
+	    jsr _getXShifted
+	    jsr sub16
+	    `pop _y		; update variables with calculations.
+	    `pop _x
+	    jsr add16		; SumAngle + angle for iteration at TOS
 	bra _endif
 _else:
-	`push _approximation	; The approximation is too large, so decrease it.
-	`push _correction
-	jsr sub16
+	    jsr sub16		; Calc _x-(Y >> LoopNum) but update _x after _y calcs.
+	    `push _y		; _y is done in sequence
+	    jsr _getXShifted
+	    jsr add16
+	    `pop _y		; update variables with calculations.
+	    `pop _x
+	    jsr sub16		; SumAngle - angle for iteration at TOS
 _endif:
-.scend
-	`pop _approximation
-	lsr _correction+1	; Correction factor is positive, so use bit shifts
-	ror _correction		; to halve it for the next iterration.
-	lda _correction+1
-	ora _correction
-	bne _do			; Continue until the correction is zero.
-	`push _approximation	; return only the approximation.
-	jsr divByTwo16		; 4/
+	inc _loopNum
+	lda _loopNum
+	cmp #_anglesCount
+	bmi _do
 	jsr divByTwo16
-	lda _xsave+1
-	bpl +			; if x's sign was negative, then
-	`pushi STRAIGHT_ANGLE	; move results into 3 & 4 quadrants.
-	jsr add16
-*	rts
+	jsr divByTwo16		; divide SumAngle by 4 to match resolution used
+	ply
+	rts
+
+_getXShifted:
+	`push _x
+	lda _loopNum
+	`pushA
+	jsr arshift16
+	rts
+
+_getYShifted:
+	`push _y
+	lda _loopNum
+	`pushA
+	jsr arshift16
+	rts
+
+_getAngle:
+	lda _loopNum
+	asl
+	tay
+	lda _anglesTable,y
+	`pushA
+	iny
+	lda _anglesTable,y
+	sta TOS_MSB,x
+	rts
+
+; 11 bit precomputed tangent values for CORDIC
+.alias _cordicAnglesCount [[_cordicAnglesTableEnd - _cordicAnglesTable] / 2]
+_cordicAnglesTable:
+	.word $0200, $012E 	; 45, 26.565,
+	.word $00A0, $0051 	; 14.036, 7.125,
+	.word $0029, $0014 	; 3.576, 1.790, 0.895, 0.448
+	.word $000A, $0005 	; 0.895, 0.448
+_cordicAnglesTableEnd:
 .scend
 
 sineTable:
@@ -316,7 +344,7 @@ sineTable:
 	.word $7FFF
 
 tangentTable:
-.word $0000, $000C, $0019, $0025, $0032, $003E, $004B, $0058
+	.word $0000, $000C, $0019, $0025, $0032, $003E, $004B, $0058
 	.word $0064, $0071, $007D, $008A, $0097, $00A3, $00B0, $00BD
 	.word $00C9, $00D6, $00E3, $00EF, $00FC, $0109, $0116, $0122
 	.word $012F, $013C, $0149, $0156, $0163, $0170, $017D, $018A
