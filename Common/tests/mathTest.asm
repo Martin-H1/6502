@@ -279,6 +279,12 @@ _name:	.byte "*** arshift test ***",0
 arshift_test:
 	`println _name
 	`pushi $ffff
+	`pushi 0
+	jsr arshift16
+	jsr printtosln
+	`drop
+
+	`pushi $ffff
 	`pushi 2
 	jsr arshift16
 	jsr printtosln
