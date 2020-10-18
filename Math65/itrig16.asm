@@ -266,8 +266,8 @@ _endif:
 	lda _loopNum
 	cmp #_cordicAnglesCount
 	bmi _do
-	jsr divByTwo16
-	jsr divByTwo16		; divide SumAngle by 4 to match resolution used
+	`pushi 5
+	jsr arshift16		; divide SumAngle by 32 to match resolution used
 	ply
 	rts
 
@@ -296,13 +296,17 @@ _getAngle:
 	sta TOS_MSB,x
 	rts
 
-; 11 bit precomputed tangent values for CORDIC
+; 13 bit precomputed tangent values for CORDIC
 .alias _cordicAnglesCount [[_cordicAnglesTableEnd - _cordicAnglesTable] / 2]
 _cordicAnglesTable:
-	.word $0200, $012E 	; 45, 26.565,
-	.word $00A0, $0051 	; 14.036, 7.125,
-	.word $0029, $0014 	; 3.576, 1.790, 0.895, 0.448
-	.word $000A, $0005 	; 0.895, 0.448
+	.word $1000	; 45
+	.word $0972	; 26.565
+	.word $04FD	; 14.036
+	.word $0288	; 7.125
+	.word $0145	; 3.576
+	.word $00A2	; 1.79
+	.word $0051	; 0.895
+	.word $0028	; 0.448
 _cordicAnglesTableEnd:
 .scend
 
