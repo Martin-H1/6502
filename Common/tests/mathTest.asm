@@ -295,6 +295,7 @@ arshift_test:
 	jsr arshift16
 	jsr printtosln
 	`drop
+	jsr printstack
 	rts
 .scend
 

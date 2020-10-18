@@ -416,10 +416,10 @@ arshift16:
 .scope
 	phy
 	lda TOS_LSB,x
+	`drop
 	and #%00001111
 	beq _done         ; if it is zero, don't do anything
 	tay
-	`drop
 _while:	jsr divByTwo16
 	dey
 	bne _while

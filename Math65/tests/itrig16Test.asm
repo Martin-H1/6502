@@ -181,6 +181,7 @@ _test:	`print _msg1
 	rts
 .scend
 
+	sta TOS_MSB,x
 .require "../../Common/tests/mockConio.asm"
 .require "../../Common/conio.asm"
 .require "../../Common/math16.asm"
