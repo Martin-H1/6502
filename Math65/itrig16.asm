@@ -23,11 +23,9 @@
 ; Data segments
 ;
 .data BSS
-.space _approximation	2	; binary search workspace
-.space _correction	2
-.space _x		2
-.space _y		2
-.space _loopNum		1
+.space _x		2	; CORDIC's adjusted x value.
+.space _y		2	; CORDIC's adjusted y value.
+.space _loopNum		1	; CORDIC's iteration count.
 .text				; revert back to code segment.
 
 ; clampAngle16 takes brads as input and returns an angle that is positive and
@@ -178,42 +176,42 @@ clampSin16:
 ; before return.
 asin16:
 .scope
+	phy
 	jsr clampSin16
-	`pushZero
-	`pop _approximation	; initialized the approximation and correction.
-	`pushi ACUTE_ANGLE
-	`pushi 2
-	jsr lshift16		; unsigned 4 * because to bits are zero.
-	`pop _correction	; refine approximation and correction iteratively by
-_do:	`dup			; compare the sine of the approximation to the value.
-	`push _approximation
+	`pushZero	    	; keep sine input and approximation on stack
+	ldy #$00
+_do:	`over			; compare the input to sine of the approximation.
+	`over
 	jsr divByTwo16		; Signed divide by four
 	jsr divByTwo16
 	jsr sin16
-	`if_greater16
-	`push _approximation	; The approximation is too small, add the correction.
-	`push _correction
-	jsr add16
+	`if_greater16		; The approximation is too small, add the correction.
+	    lda _asinCorectionsTable,y
+	    `pushA
+	    iny
+	    lda _asinCorectionsTable,y
+	    sta TOS_MSB,x
+	    jsr add16
 	bra _endif
-_else:
-	`push _approximation	; The approximation is too large, subtract the correction.
-	`push _correction
-	jsr sub16
+_else:				; The approximation is too large, subtract the correction.
+	    lda _asinCorectionsTable,y
+	    `pushA
+	    iny
+	    lda _asinCorectionsTable,y
+	    sta TOS_MSB,x
+	    jsr sub16
 _endif:
-	`pop _approximation
-	lsr _correction+1	; Correction factor is positive, so use bit shifts
-	ror _correction		; to halve it for the next iterration.
-	lda _correction+1
-	ora _correction
-	bne _do			; Continue until the correction is zero.
-	`drop			; drop input and return only the approximation.
-	`push _approximation
+	iny
+	cpy #_asinCorrectionsCount
+	bmi _do			; Continue until the correction is zero.
+	`nip			; drop input and return only the approximation.
 	jsr divByTwo16		; Signed divide by 4 to return an angle.
 	jsr divByTwo16
+	ply
 	rts
 
 ; 11 bit precomputed correction values for binary search
-.alias _asinCorrectionsCount [[[_asinCorectionsTableEnd - _asinCorectionsTable] / 2]
+.alias _asinCorrectionsCount [_asinCorectionsTableEnd - _asinCorectionsTable]
 _asinCorectionsTable:
 	.word $0200, $0100 	; 45, 22.5
 	.word $0080, $0040	; 11.25, 5.625
@@ -240,7 +238,7 @@ atan216:
 	phy
 	`pop _x
 	`pop _y
-	`pushZero		; Zero for first approximation of SumAngle at TOS.
+	`pushZero		; Zero for first approximation of angle at TOS.
 	stz _loopNum		; initialize loop and bitshift count.
 _do:	jsr _getAngle		; Use stack like an RPM calculator and push args for later.
 	`push _x
@@ -266,7 +264,7 @@ _else:
 _endif:
 	inc _loopNum
 	lda _loopNum
-	cmp #_anglesCount
+	cmp #_cordicAnglesCount
 	bmi _do
 	jsr divByTwo16
 	jsr divByTwo16		; divide SumAngle by 4 to match resolution used
@@ -291,10 +289,10 @@ _getAngle:
 	lda _loopNum
 	asl
 	tay
-	lda _anglesTable,y
+	lda _cordicAnglesTable,y
 	`pushA
 	iny
-	lda _anglesTable,y
+	lda _cordicAnglesTable,y
 	sta TOS_MSB,x
 	rts
 
