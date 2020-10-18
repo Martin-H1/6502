@@ -43,6 +43,7 @@ main:
 	jsr andor_test
 	jsr minmax_test
 	jsr divByTwo_test
+	jsr arshift_test
 	brk
 
 true: .byte "True!",0
@@ -251,24 +252,48 @@ divByTwo_test:
 	`println _name
 	`pushi $ffff
 	jsr divByTwo16
-	jsr printstack
+	jsr printtosln
 
 	jsr divByTwo16
-	jsr printstack
+	jsr printtosln
 	`drop
 
 	`pushi $f0f0
 	jsr divByTwo16
-	jsr printstack
+	jsr printtosln
 	`drop
 
 	`pushi $0010
 	jsr divByTwo16
-	jsr printstack
+	jsr printtosln
 	jsr divByTwo16
-	jsr printstack
+	jsr printtosln
 	jsr divByTwo16
-	jsr printstack
+	jsr printtosln
+	`drop
+	rts
+.scend
+
+.scope
+_name:	.byte "*** arshift test ***",0
+arshift_test:
+	`println _name
+	`pushi $ffff
+	`pushi 2
+	jsr arshift16
+	jsr printtosln
+	`drop
+
+	`pushi $f0f0
+	`pushi 3
+	jsr arshift16
+	jsr printtosln
+	`drop
+
+	`pushi $0080
+	`pushi $0003
+	jsr arshift16
+	jsr printtosln
 	`drop
 	rts
 .scend

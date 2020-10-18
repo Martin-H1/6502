@@ -412,6 +412,23 @@ _done:	`drop
 
 ; Shift cell u bits to the right. We mask the anything except the lower
 ; 4 bit of u so we can maximally move 16 bit.
+arshift16:
+.scope
+	phy
+	lda TOS_LSB,x
+	and #%00001111
+	beq _done         ; if it is zero, don't do anything
+	tay
+	`drop
+_while:	jsr divByTwo16
+	dey
+	bne _while
+_done:	ply
+	rts
+.scend
+
+; Shift cell u bits to the right. We mask the anything except the lower
+; 4 bit of u so we can maximally move 16 bit.
 rshift16:
 .scope
 	phy
