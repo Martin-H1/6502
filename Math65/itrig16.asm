@@ -2,7 +2,9 @@
 ; Sine table for 16 bit integer trig functions scaled by 2^15 with 256
 ; samples per quadrent and indexed using binary radians.
 ; See https://en.wikipedia.org/wiki/Binary_scaling for more information.
-; Martin Heermance <mheermance@gmail.com>
+;
+; Copyright (c) 2020 by Martin Heermance <mheermance@gmail.com>
+; MIT Licensed
 ; -----------------------------------------------------------------------------
 
 .scope
