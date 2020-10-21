@@ -15,7 +15,7 @@
 ; Data segments
 ;
 .data BSS
-.space _N	2		; a workspace cell.
+.space _N	6		; a workspace cell.
 .space _CNT	2		; a counter cell.
 .text
 
@@ -243,6 +243,83 @@ _endloop:
 	`drop			; drop unused date from the stack.
 	`swap			; swap quotient and remainder.
 	rts
+.scend
+
+; MSTAR ( n n -- dn ) ("M*")
+; Multiply two 16 bit numbers, producing a 32 bit result. All numbers are 
+; signed. This is adapted from FIG Forth code, the original Forth code is 
+; OVER OVER XOR >R ABS SWAP ABS UM* R> D+-  where "D+-" is O< IF DNEGATE THEN 
+; FIG Forth is in the public domain
+.scope
+mstar:
+	lda TOS_MSB,x		; figure out the sign
+	eor NOS_MSB,x
+	pha
+	jsr abs16		; get the absolute value of both numbers
+	`swap
+	jsr abs16
+	jsr umstar		; now ( d ) on stack
+	pla			; handle the sign
+	bpl _done
+	jsr neg32
+_done:	rts
+.scend
+
+; UMSTAR ( n n -- dn ) ("UM*")
+; Multiply two 16 bit numbers, producing a 32 bit result. Everything is 
+; unsigned. This is based on modified FIG Forth code by Dr. Jefyll, see  
+; http://forum.6502.org/viewtopic.php?f=9&t=689 for a detailed discussion.
+; use the _N scratch pad for temp storage.
+; FIG Forth is in the public domain. Note old Forth versions such as FIG Forth
+; call this "U*"
+.scope 
+umstar:
+	clc			; clear carry for safety
+	lda TOS_LSB,x		; copy top of the stack to _N+2, _N+3.
+				; To eliminate CLC inside the loop,
+	sbc #$00		; this value is reduced by 1 in advance.
+	sta _N+2
+	lda TOS_MSB,x
+	sbc #$00
+	bcc _zero		; if TOS is zero, deal with it
+	sta _N+3
+	lda #$00		; Put $00 in both A and _N. 
+	sta _N			; First eight shifts are A --> _N --> 2,x
+				; Final eight shifts are A --> SYSPAD --> 3,x
+	stx _N+4		; tested later for exit from outer loop
+	`advance
+
+_outerloop:
+	ldy #$08 
+	lsr THS_LSB,x		; think "2,x" and later "3,x"
+
+_innerloop:
+	bcc _noadd
+	sta _N+1		; save time by not CLC, see above
+	lda _N
+	adc _N+2
+	sta _N
+	lda _N+1
+	adc _N+3
+
+_noadd:
+	ror			; shift
+	ror _N
+	ror THS_LSB,x		; think NOS_LSB and later NOS_MSB
+	dey 
+	bne _innerloop		; go back for one more shift?
+	inx
+	cpx _N+4
+	bne _outerloop		; go back for eight more shifts?
+				; all done
+	sta TOS_MSB,x		; MSB of high word of result
+	lda _N
+	sta TOS_LSB,x		; LSB of high word of result 
+	bra _done
+
+_zero:	stz NOS_LSB,x
+	stz NOS_MSB,x		; drop through to RTS
+_done:	rts
 .scend
 
 ; Symmetic signed division with remainder. Based on F-PC 3.6 by Ulrich Hoffmann

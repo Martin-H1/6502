@@ -44,6 +44,7 @@ main:
 	jsr minmax_test
 	jsr divByTwo_test
 	jsr arshift_test
+	jsr mstar_test
 	brk
 
 true: .byte "True!",0
@@ -302,6 +303,33 @@ arshift_test:
 	jsr printtosln
 	`drop
 	jsr printstack
+	rts
+.scend
+
+.scope
+_name:	.byte "*** mstar test ***",0
+mstar_test:
+	`println _name
+	`pushi $ffff
+	`pushi 0
+	jsr mstar
+	jsr printstack
+	`drop
+	`drop
+
+	`pushi $0ff0
+	`pushi $0008
+	jsr mstar
+	jsr printstack
+	`drop
+	`drop
+
+	`pushi $000f
+	`pushi $0008
+	jsr mstar
+	jsr printstack
+	`drop
+	`drop
 	rts
 .scend
 
