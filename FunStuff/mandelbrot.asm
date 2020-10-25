@@ -18,7 +18,7 @@
 .alias MINVAL $FE00
 .alias MAXVAL $0200
 .alias ISTEP  $001A
-.alias RSTEP  $001A
+.alias RSTEP  $000D
 .alias ESCAPE $0400
 
 ;
@@ -118,13 +118,14 @@ doEscape:
 .scope
 	jsr zrSq
 	jsr ziSq
-	`dup
-	`dup
+	`over
+	`over
 	jsr add16
 	`pushi ESCAPE		; Numbers >= 4 will always escape
 	jsr compare16
+	beq +
 	bpl _else
-	`drop			; cleanup the stack and return.
+*	`drop			; cleanup the stack and return.
 	`drop
 	`pushTrue
 	rts

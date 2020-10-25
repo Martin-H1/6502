@@ -141,7 +141,7 @@ _loop:	`drop
 _name:	.byte "*** doEscape test ***",0
 _msg1:	.byte "doEscape of ",0
 _msg2:	.byte " = ",0
-_tests:	.word $fe00, $ff00, $0000, $0100, $0200
+_tests:	.word $fd00, $fe00, $ff00, $0000, $0100, $0200, $0300
 _testsEnd:
 .alias _testsCount [_testsEnd - _tests]
 doEscapeTest:
