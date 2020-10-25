@@ -252,6 +252,7 @@ _endloop:
 ; FIG Forth is in the public domain
 .scope
 mstar:
+	phy
 	lda TOS_MSB,x		; figure out the sign
 	eor NOS_MSB,x
 	pha
@@ -262,7 +263,8 @@ mstar:
 	pla			; handle the sign
 	bpl _done
 	jsr neg32
-_done:	rts
+_done:	ply
+	rts
 .scend
 
 ; UMSTAR ( n n -- dn ) ("UM*")
