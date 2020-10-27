@@ -14,12 +14,21 @@
 
 ; Setup constants to remove magic numbers to allow
 ; for greater zoom with different scale factors.
-.alias MAXITER 20
-.alias MINVAL $FE00
-.alias MAXVAL $0200
-.alias ISTEP  $001A
-.alias RSTEP  $000D
-.alias ESCAPE $0400
+.alias MAXITER	20
+.alias IMAXVAL	$0170
+.alias IMINVAL	$FE90
+.alias ISTEP	$0010
+.alias RMINVAL	$FE00
+.alias RMAXVAL	$0110
+.alias RSTEP	$000A
+.alias ESCAPE	$0400
+
+; Alternate constanst for 4.12 fixed point.
+; .alias MINVAL $E000
+; .alias MAXVAL $2000
+; .alias ISTEP  $01A0
+; .alias RSTEP  $00D0
+; .alias ESCAPE $4000
 
 ;
 ; Data segments
@@ -52,13 +61,13 @@
 mandelbrot:
 .scope
 	`printcr
-	`pushi MAXVAL		; Start iteration at max imaginary
+	`pushi IMAXVAL		; Start iteration at max imaginary
 _do:	jsr doRow		; For each row in the set.
 	`printcr
 	`pushi ISTEP
 	jsr sub16
 	`dup
-	`pushi MINVAL
+	`pushi IMINVAL
 	jsr compare16
 	bmi _do
 	`drop
@@ -68,12 +77,12 @@ _do:	jsr doRow		; For each row in the set.
 ; For each cell in a row.
 doRow:
 .scope
-	`pushi MINVAL		; Start iteration at max imaginary
+	`pushi RMINVAL		; Start iteration at max imaginary
 _do:	jsr doCell		; For each row in the set.
 	`pushi RSTEP
 	jsr add16
 	`dup
-	`pushi MAXVAL
+	`pushi RMAXVAL
 	jsr compare16
 	bpl _do
 	`drop
@@ -133,10 +142,12 @@ _else:
 	jsr sub16		; Squared i yeilds negative, so subtract
 	`push CREAL
 	jsr add16		; add real components and leave result on stack
-	`push ZREAL
+	`push ZREAL		; 2 * ZREAL * ZIMAG
 	`push ZIMAG
 	jsr mstar
 	`rescale
+	`pushi 1
+	jsr lshift16
 	`push CIMAG
 	jsr add16
 	`pop ZIMAG		; Store stack item into ZIMAG and ZREAL
@@ -193,4 +204,24 @@ _else:	`pushZero
 	rts
 .scend
 
+; Rescales the 32 bit value into a 16 bit 4.12 fixed point number.
+_rescale:
+	phy
+	ldy #$04		; Right shift 4 bits
+*	lda TOS_MSB,x
+	asl
+	ror TOS_MSB,x
+	ror TOS_LSB,x
+	ror NOS_MSB,x
+	ror NOS_LSB,x
+	dey
+	bne -
+	lda NOS_MSB,x		; right shift one byte
+	sta NOS_LSB,x
+	lda TOS_LSB,x
+	sta NOS_MSB,x
+	`drop
+	ply
+	rts
+	
 .scend
