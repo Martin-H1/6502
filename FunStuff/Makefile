@@ -1,7 +1,11 @@
 include ../common.mk
 
+ROMS = \
+	mandelbrotMain.rom
+
 SOURCES =  \
-	mandelbrot.asm
+	mandelbrot.asm \
+	mandelbrotMain.asm
 
 TESTS =  \
 	mandelbrotTest
@@ -20,7 +24,10 @@ mandelbrotTest: tests/mandelbrotTest.rom
 tests/%.rom : tests/%.asm $(SOURCES)
 	${OPHIS} -l $<.lst -m $<.map --65c02 $<
 
-release:
+%.rom: %.asm
+	${OPHIS} -l $<.lst -m $<.map --65c02 $<
+
+release: $(ROMS)
 
 clean:
 	-$(RM) *.rom
