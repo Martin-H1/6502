@@ -36,10 +36,16 @@
 
 ; Main entry point for the monitor.
 monitorInit:
-	`pushi monitorBreak
-	`pop INTvector
-	`pushi monitorNmi
-	`pop NMIvector
+	lda #<monitorBreak
+	sta INTvector
+	lda #>monitorBreak
+	sta INTvector+1
+
+	lda #<monitorNmi
+	sta NMIvector
+	lda #>monitorNmi
+	sta NMIvector+1
+
 	cli
 	rts
 
@@ -71,7 +77,7 @@ Brk2:	stx _PCH		; save PC
 	tsx			; get stack pointer
 	stx _SPtr		; save stack pointer
 	lda #AscBell
-	jsr putch		; Beep speaker
+	jsr biosPutchImpl	; Beep speaker
 	jsr _printRegln		; dump register contents
 	ldx #$FF
 	txs			; clear stack
@@ -84,7 +90,7 @@ _delay:
 
 ; function to print CR, register contents, and crlf.
 _printCRRegln:
-	`printcr			; Lead with a CR
+	jsr biosCRLFImpl	; Lead with a CR
 
 ; function to print register contents, and crlf.
 _printRegln:
@@ -94,14 +100,14 @@ _printRegln:
 _loop:
 	iny
 	lda _regDataMsg,y
-	jsr putch
+	jsr biosPutchImpl
 	cmp #$3D			; "="
 	bne _loop
 *	inx
 	cpx #$07
 	beq Printreg3			; done with first 6
 	lda _PCH,x
-	jsr printa
+	jsr biosPutHexImpl
 	cpx #$00
 	bne _loop
 	bra -
@@ -115,11 +121,11 @@ Printreg4:
 	lda #$31
 	bcs +
 	dec
-*	jsr putch
+*	jsr biosPutchImpl
 	tya
 	dex
 	bne Printreg4
-	`printcr
+	jsr biosCRLFImpl
 	rts
 
 _regDataMsg:

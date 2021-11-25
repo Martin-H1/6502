@@ -7,8 +7,6 @@
 .outfile "tests/conioTest.rom"
 
 .alias RamSize   $7EFF		; def $8000 for 32 kb x 8 bit RAM
-.alias heap_base $0400		; The heap starts on page 4.
-.alias heap_size $4000		; It's size is 16 KB.
 
 .require "../data.asm"
 

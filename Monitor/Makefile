@@ -1,7 +1,10 @@
 include ../common.mk
 
 SOURCES =  \
-	monitor.asm
+	bios.asm \
+	biosImpl.asm \
+	monitor.asm \
+	vectors.asm
 
 TESTS =  \
 	monitorTest

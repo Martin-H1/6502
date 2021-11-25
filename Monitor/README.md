@@ -1,9 +1,12 @@
 # Monitor
-A re-write of the SBC2.7 machine language monitor using Ophis and my common data types and functions.
+This project includes a BIOS (accessed via a jump table), and a ROM monitor.
+It will be losely a re-write of the SBC2.7 monitor using Ophis.
 
 Overview
 ======
-The purpose of this project is to create a machine language montior set of reusable modules refactored out of other projects.
+The purpose is to allow user programs to be written using the BIOS interface
+and be portable between machines that implement that BIOS. One BIOS will be
+a PyMon debug BIOS, and another for real hardward.
 
 Prerequisites
 ======
@@ -15,7 +18,11 @@ Files
 * LICENSE - MIT license file.
 * Makefile - makefile to issue all of the commands.
 * README.md - this file.
+* assembler.asm - embedded assembler for the monitor.
+* bios.asm - aliases to the jump table entry points for consumers.
+* biosImpl.asm - implmentation of BIOS functions.
 * monitor.asm - code for the monitor.
+* vectors.asm - high ROM jump table and reset vectors.
 ## tests
 * monitorTest.asm - unit tests follow module name with Test.
 
