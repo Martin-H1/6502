@@ -10,7 +10,7 @@
 ;
 ; Data segments
 ;
-.data BSS
+.data MONDATA
 .space BRKvector 3		; holds application break vector
 .space RESvector 3		; holds application reset vector & checksum
 .space INTvector 3		; holds application interrupt vector & checksum

@@ -11,26 +11,12 @@
 ; Aliases
 ;
 
-; Character set (ASCII)
-.alias AscBell	$07	; bell (Control-G) ASCII character
-.alias AscBS	$08	; backspace ASCII character
-.alias AscCC	$03	; break (Control-C) ASCII character
-.alias AscCR	$0D	; carriage return ASCII character
-.alias AscDEL	$7F	; DEL ASCII character
-.alias AscESC	$1B	; Escape ASCII character
-.alias AscFF	$0C	; Formfeed ASCII character
-.alias AscLF	$0A	; line feed ASCII character
-.alias AscSP	$20	; space ASCII character
-.alias AscTAB	$09	; tab ASCII character
-.alias AscVT	$0B	; vertical tab ASCII character
-
 .alias _tibSize [_tibEnd - _tib]
 
 ;
 ; Data segments
 ;
 .data MONDATA
-.org $0200
 
 .space _tib	$50	; a line buffer for buffered reads.
 .space _tibEnd	$00	; end marker to compute buffer size.
@@ -84,7 +70,7 @@ biosInitImpl:
 ; Output ctrl-G to beep speaker.
 biosBellImpl:
 	lda #AscBell
-	jmp biosPutchImpl
+	jmp biosPutch
 
 ; Clears the terminal (if supported).
 biosCLSImpl:
@@ -93,7 +79,7 @@ biosCLSImpl:
 ; Go to the next line on terminal.
 biosCRLFImpl:
         lda #AscLF
-        jmp biosPutchImpl
+        jmp biosPutch
 
 ; cgets is similar to the MSDOS console I/O function that reads an entire
 ; line from _stdin. A line is terminated by a CR, and backspace deletes
@@ -110,11 +96,17 @@ _while:
 	lda _echo
 	beq +
 	lda _tib,y
-	jsr biosPutchImpl
+	jsr biosPutch
 *	lda _tib,y
 	cmp #AscBS
 	bne +
-	`_decIdx
+	`_decIdx		; remove from buffer
+	lda _echo
+	beq +			; if no echo then continue
+	lda #AscSP		; otherwise overwrite on terminal.
+	jsr biosPutch		; backup one space again
+	lda #AscBS
+	jsr biosPutch
 	bra _while
 *	`_incIdx
 	cmp #AscCR
@@ -139,7 +131,7 @@ biosCputsImpl:
 _loop:
 	lda (BIOSARG1),y	; get the string via address from zero page
 	beq _exit		; if it is a zero, we quit and leave
-	jsr biosPutchImpl	; if not, write one character
+	jsr biosPutch		; if not, write one character
 	iny			; advance to the next character
 	bne _loop
 	inc BIOSARG1+1		; advance to the next page
@@ -157,7 +149,7 @@ biosGetchImpl:
 	ldy _readIdx
 	cpy _writeIdx
 	bne +
-	jsr biosCgetsImpl	; buffer empty, get more characters.
+	jsr biosCgets		; buffer empty, get more characters.
 *	lda _tib,y
 	`_incIdx
 	sty _readIdx		; store next read index.
@@ -189,7 +181,7 @@ _print_nybble:
 	adc #$90	        	; Produce $90-$99 or $00-$05
 	adc #$40			; Produce $30-$39 or $41-$46
 	cld
-	jmp biosPutchImpl
+	jmp biosPutch
 
 ; puts a character in accumulator to stdout by doing an indirect jump to
 ; that handler. The handler will RTS to our caller.

@@ -11,17 +11,17 @@
 
 .advance $c000
 
+.require "../common.asm"
 .require "../bios.asm"
 .require "../biosImpl.asm"
-.require "mockStdio.asm"
 .require "../monitor.asm"
+.require "mockStdio.asm"
 
 ; Main entry point for the test
 main:
 	jsr mockBiosInit
-	`callBiosCputs _name
-	brk
 	jsr monitorInit
+	jsr monitorMain
 	brk
 	nop
 
