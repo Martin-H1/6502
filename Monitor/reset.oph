@@ -1,0 +1,163 @@
+; -----------------------------------------------------------------------------
+; Boot, reset, break, and interrupt handlers.
+; The origin of this code is Daryl Rictor and Rich Cini's SBC OS. I ported to
+; Ophis and then started tweaking.
+; Martin Heermance <mheermance@gmail.com>
+; -----------------------------------------------------------------------------
+
+;
+; Aliases
+;
+
+;
+; Data segments
+;
+.data MONDATA
+.org $03f4
+
+.space BRKvector 3		; holds application break vector
+.space RESvector 3		; holds application reset vector & checksum
+.space INTvector 3		; holds application interrupt vector & checksum
+.space NMIvector 3		; holds application NMI vector & checksum
+.text
+
+;
+; Macros
+;
+
+;
+; Functions
+;
+
+; Interrupt handler for RESET button, also boot sequence. 
+.scope
+resetv:
+	sei 		; diable interupts until interupt vectors are set.
+	cld 		; clear decimal mode
+	ldx #$FF
+	txs 		; init stack pointer
+
+zeromem:		; We could add a boot option to bypass memory erase.
+	lda #$7F	; Initialize pointer to top page of RAM
+	sta $01		; MSB
+	lda #$00
+	sta $00		; LSB
+zeromem1:
+	sta ($00)	; loop will fill loc 0 of each page then 
+	dec $00		; fill from ff->01 of that page
+	bne zeromem1	; then will drop one page and fill loc 0
+	dec $01		; doing that until page is back to FF
+	bpl zeromem1
+	sta $01		; fix last byte from ff to 00
+
+setVectors:
+	lda RESvector+1	; reset vector 
+	eor #$A5	; on reset, perform code @ label reset
+	cmp RESvector+2	; if checksm ok, then jmp ind to address
+	beq nextvec1	; else set up to jmp to monitor
+	ldx #<main	; *** only outside reference in reset routine
+	lda #>main	; *** points to Monitor Boot routine
+	tay 
+	eor #$A5
+	sta RESvector+2
+	sty RESvector+1
+	stx RESvector
+
+nextVec1:
+	lda NMIvector+1		; set up NMI vectors if checksum invalid
+	eor #$A5
+	cmp NMIvector+2
+	beq nextvec2
+	ldx #<nmiVec		; set up to point to NMI handler 
+	lda #>nmiVec
+	tay
+	eor #$A5
+	sta NMIvector+2
+	sty NMIvector+1
+	stx NMIvector
+
+nextVec2:
+	lda INTvector+1
+	EOR #$A5
+	CMP INTvector+2
+	beq Nextvec3
+	ldx #<INTret		; set up to point to RTI command 
+	lda #>INTret		; (no system INT applications)
+	tay 
+	eor #$A5
+	sta INTvector+2
+	sty INTvector+1
+	stx INTvector
+
+nextVec3:
+	lda BRKvector+1
+	eor #$A5
+	cmp BRKvector+2
+	beq Nextvec4
+	ldx #<BRKroutine		; set up to point to my BRK routine
+	lda #>BRKroutine
+	tay 
+	eor #$A5
+	sta BRKvector+2
+	sty BRKvector+1
+	stx BRKvector
+
+nextVec4:
+;
+; select the IO device driver here       
+;
+	jsr ACIA1_init	; init the I/O devices
+
+clrRegs:
+	lda #$00	; Clear registers
+	tay
+	tax
+	clc 		; clear flags
+	cld 		; clear decimal mode
+	cli 		; Enable interrupt system
+	jmp (RESvector)	; Monitor for cold reset                       
+.scend
+
+nmiv:	jmp (NMIvector)
+INTret:	rti 		; Null interrupt handler
+
+irqv:	phx
+	pha
+	tsx 		; get stack pointer
+	lda $0103,X	; load INT-P Reg off stack
+	and #$10	; mask BRK
+	bne BrkCmd	; BRK CMD
+	pla
+	plx
+	jmp (INTvector)	; let user routine have it
+
+BrkCmd:	pla
+	plx
+	jmp (BRKvector)	; patch in user BRK routine
+	rts
+
+;
+; NMI Vector entry
+; Very simple at this point but other handling for VIA1 interrupts
+; can go here.
+;
+nmiVec:
+	pha		; save regs
+	txa
+	pha
+	tya
+	pha
+;	cld		; decimal mode should be cleared as a CYA.
+	pla 		; restore registers
+	tay
+	pla 
+	tax 
+	pla 
+	cli 		; re-enable interrupts
+	jmp Brk2	; part of BRK handler
+
+.advance $FFFA
+
+.word nmiv		; NMI vector
+.word resetv		; RESET vector
+.word irqv		; IRQ vector

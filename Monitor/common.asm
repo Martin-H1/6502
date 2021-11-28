@@ -31,6 +31,8 @@
 ;
 ; Data segments
 ;
+.data MONZP
+.org $0080
 
 .data MONDATA
 .org $0200

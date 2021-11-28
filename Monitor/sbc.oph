@@ -1,0 +1,43 @@
+;*********************************************************************
+;
+;  2005/09/04	RAC	Synched with SBCOS 5/30/05 release
+;  2003/09/05	RAC	Reordered system code to enable user to remove
+;			EhBASIC easily and to minimize memory holes
+;			to maximize user ROM space.
+; Assumed Memory Map
+; 0000-7EFF - RAM (32K minus 256 bytes of I/O) 
+; 7F00-7F4F - Five unused decoded I/O Blocks (16 bytes each) 
+; 7F50-7F5F - VIA1 (16 bytes) - SerialIEC
+; 7F60-7F6F - VIA2 (16 bytes) - .A=video
+; 7F70-7F7F - 65C51 (16 bytes) 
+; 7F80-7FFF - undecoded I/O blocks (128 bytes) 
+; 8000-FFFF - EPROM (32K) 
+;  8000-AFFF -- unused (12.3k)			 } 
+;  E600-FFFF -- System BIOS, monitor and assembler (6.5k)
+;
+; Assumed RAM Map
+; Page 0 Z-page
+; Page 1 Processor Stack
+; Page 2 Free above $026f
+; Page 3 Reserved for system monitor and related buffers
+; Page 4 Start of free RAM
+;
+
+.org $8000
+.outfile "sbc27.rom"
+
+.require "common.asm"
+
+; this is fixed in memory for now
+.advance $E500
+.require "sbcos.oph"		; $E500 - F737  OS
+.require "assembler.asm"
+
+.advance $F800
+.require "ACIA1.oph"
+
+.advance $F900
+.require "xmodem.asm"		; $FA00 - FEFE Intel Hex & Xmodem-CRC uploader
+
+.advance $FF00
+.require "reset.oph"		; $FF00  Reset & IRQ handler

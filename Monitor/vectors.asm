@@ -1,5 +1,5 @@
 ; -----------------------------------------------------------------------------
-; Boot and interrupt handlers.
+; Boot, Reset, Break, and interrupt handlers.
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
 
