@@ -11,8 +11,8 @@ ifeq ($(OS),Windows_NT)
 else
     / = /
     OPHIS = ~/Ophis-2.1/ophis
-    PY65MON = python
-    PYTHON = python
+    PY65MON = ~/.local/bin/py65mon
+    PYTHON = python3
     RM = rm -f
     RMDIR = rm -rf
     SHELL_EXT = sh
