@@ -29,6 +29,8 @@
 .alias negOne $ffff	; precomputed negative quantities to avoid subtraction
 .alias negSize [0-size]
 .alias negWidth [0-width]
+.alias lastCol [width-1]
+.alias lastRow [size-width]
 
 ;
 ; Data segments
@@ -59,7 +61,7 @@
 ;
 
 ; adds two 16 bit quantities and puts the result in the first argument
-.macro addConstant
+.macro addConst
 	clc
 	lda _1
 	adc #<_2
@@ -69,7 +71,7 @@
         sta _1+1
 .macend
 
-.macro compareConstant
+.macro compareConst
 	lda _1
 	cmp #<_2
 	beq _equal
@@ -92,12 +94,19 @@ _notequal:
 	ora #$01		; if overflow, we can't be equal
 _done:
 .macend
-	
-.macro loadPtr
+
+.macro loadConst
 	lda #<_2
 	sta _1
 	lda #>_2
 	sta _1+1
+.macend
+
+.macro printWord
+	lda _1+1
+	jsr printa
+	lda _1
+	jsr printa
 .macend
 
 .org $8000
@@ -107,19 +116,24 @@ _done:
 ;
 ; Functions
 ;
+main:
+	`loadConst colJmpPtr, printWelcome
+	jsr currErase
+	`loadConst col, 30
+	jsr colPlus
+	`printWord temp
+	lda #AscLF
+	jsr _putch
+	brk
+
 _welcome:
 	.byte "Game of Life",0
 printWelcome:
-	`loadPtr strPtr, _welcome
+	`loadConst strPtr, _welcome
 	jsr cputs
 	lda #AscLF
 	jsr _putch
 	rts
-
-main:
-	`loadPtr colJmpPtr, printWelcome
-	jsr colForEach
-	brk
 
 ; Sets the row offset to zero
 rowFirst:
@@ -130,12 +144,12 @@ rowFirst:
 
 ; Advances the offset by the width.
 rowNext:
- 	`addConstant row, width
+	`addConst row, width
 	rts
 
 ; At end if current offset exceeds array size.
 rowAtEnd?:
-	`compareConstant row, size
+	`compareConst row, size
 	rts
 
 ; Iterator used to apply a function to the rows.
@@ -158,17 +172,25 @@ rowPlus:
 	sta temp
 	lda row+1
 	sta temp+1
-	`addConstant temp, width
-	rts
+	`addConst temp, width
+	`compareConst temp, size
+	bmi +
+	`loadConst temp, 0
+*	rts
 
 ; Returns index of the column before current using wrap around.
 rowMinus:
+.scope
 	lda row
 	sta temp
 	lda row+1
 	sta temp+1
-	`addConstant temp, negWidth
-	rts
+	`addConst temp, negWidth
+	lda temp+1
+	bpl +
+	`loadConst temp, lastRow
+*	rts
+.scend
 
 colFirst:
 	lda #$00
@@ -177,11 +199,11 @@ colFirst:
 	rts
 
 colNext:
-	`addConstant col, 1
+	`addConst col, 1
 	rts
 
 colAtEnd?:
-	`compareConstant col, width
+	`compareConst col, width
 	rts
 
 ; Iterator used to apply a function to the cols.
@@ -200,27 +222,59 @@ _indirectJmp:
 
 ; Returns index of the column after current using wrap around.
 colPlus:
-;;     col @ 1 + width mod ;
-	rts
+.scope
+	lda col
+	sta temp
+	lda col+1
+	sta temp+1
+	`addConst temp, 1
+	`compareConst temp, width
+	bmi +
+	`loadConst temp, 0
+*	rts
+.scend
 
 ; Returns index of the column before current using wrap around.
 colMinus:
-;;     col @ 1 - width mod ;
-	rts
+	lda col
+	sta temp
+	lda col+1
+	sta temp+1
+	`addConst temp, negOne
+	lda temp+1
+	bpl +
+	`loadConst temp, lastCol
+*	rts
 
 ; moves bytes from next gen to current.
 moveCurr:
-	;; 	gen_next gen_curr size move ;
+.scope
+	`loadConst genCurrPtr, gen_curr
+	`loadConst genNextPtr, gen_next
+	`loadConst temp, 0
+_loop:
+	lda (genNextPtr)
+	sta (genCurrPtr)
+	`addConst genCurrPtr, 1
+	`addConst genNextPtr, 1
+	`addConst temp, 1
+	`compareConst temp, size
+	bmi _loop
 	rts
+.scend
 
 ; clears curr array to clear out junk in ram
 currErase:
 .scope
-	`loadPtr genCurrPtr, gen_curr
+	`loadConst genCurrPtr, gen_curr
+	`loadConst temp, 0
 _loop:
 	lda #00
 	sta (genCurrPtr)
-	`addConstant genCurrPtr, 1
+	`addConst genCurrPtr, 1
+	`addConst temp, 1
+	`compareConst temp, size
+	bmi _loop
 	rts
 .scend
 
@@ -317,12 +371,12 @@ calcCell:
 	rts
 
 calcRow:
-	`loadPtr colJmpPtr, calcCell
+	`loadConst colJmpPtr, calcCell
 	jsr colForEach
 	rts
 
 calcGen:
-	`loadPtr rowJmpPtr, calcRow
+	`loadConst rowJmpPtr, calcRow
 	jsr rowForEach
 	jsr moveCurr
 	rts
@@ -332,6 +386,24 @@ life:
 ;     begin calcGen 0 0 at-xy .curr key? until ;
 	rts
 
+; prints the accumulator contents in hex to the console.
+printa:
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr _print_nybble
+	pla
+	and #$0f
+_print_nybble:
+	sed
+	clc
+	adc #$90	        	; Produce $90-$99 or $00-$05
+	adc #$40			; Produce $30-$39 or $41-$46
+	cld
+	jmp _putch
+
 ; cputs is like the MSDOS console I/O function. It prints a null terminated
 ; string to the console using _putch.
 cputs:
@@ -339,7 +411,7 @@ cputs:
 _loop:	lda (strPtr)		; get the string via address from zero page
 	beq _exit		; if it is a zero, we quit and leave
 	jsr _putch		; if not, write one character
-	`addConstant strPtr, 1	; get the next byte
+	`addConst strPtr, 1	; get the next byte
 	bra _loop
 _exit:	rts
 .scend
