@@ -30,6 +30,11 @@
 .alias AscESC	$1B	; Escape ASCII character
 .alias AscLF	$0A	; line feed ASCII character
 .alias AscSP	$20	; space ASCII character
+.alias AscLT	$3C
+.alias AscGT	$3E
+.alias AscPlus	$2B
+.alias AscMinus	$2D
+.alias AscDot	$2E
 
 ;
 ; Data segments
@@ -38,6 +43,7 @@
 .org $0080		; we'll need to use ZP addressing
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
+.space level 2		; word to hold the current loop level.
 
 .data BSS
 .org $0300		; page 3 is used for uninitialized data.
@@ -57,11 +63,79 @@
 ; Functions
 ;
 main:
+	lda #00
+	sta level
+	sta level+1
+	jsr initTape
+	lda #<helloWorld
+	sta iptr
+	lda #>helloWorld
+	sta iptr+1
+	brk
+
+initTape:
+.scope
 	lda #<tape
 	sta dptr
 	lda #>tape
 	sta dptr+1
-	brk
+
+_loop:
+	lda #00
+	sta (dptr)
+
+	inc dptr
+	bne _over
+	inc dptr+1
+_over:	lda dptr+1
+	cmp #$04
+	bne _loop
+
+	; set the dptr back to the start of the tape.
+	lda #<tape
+	sta dptr
+	lda #>tape
+	sta dptr+1
+	rts
+.scend
+
+runProgram:
+.scope
+_loop:
+	lda (dptr)
+	beq _exit
+
+	cmp #AscLT
+	bne +
+	jsr decDptr
+	bra _next
+
+*	cmp #AscGT
+	bne +
+	jsr incDptr
+	bra _next
+
+*	cmp #AscPlus
+	bne +
+	jsr incCell
+	bra _next
+
+*	cmp #AscMinus
+	bne +
+	jsr decCell
+	bra _next
+
+*	cmp #AscDot
+	bne +
+	jsr outputCell
+	bra _next
+
+_next:	inc iptr
+	bne _over
+	inc iptr+1
+_over:	bra _loop
+_exit:	rts
+.scend
 
 ; Decrement the data pointer (dptr) to the prior cell.
 decDptr:
@@ -110,6 +184,21 @@ inputCell:
 
 ;   [	If byte at dptr is zero, then jump forward to the matching ].
 ;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
+
+helloWorld:
+	.byte ">++++++++[<+++++++++>-]<."
+	.byte ">++++[<+++++++>-]<+."
+	.byte "+++++++.."
+	.byte "+++."
+	.byte ">>++++++[<+++++++>-]<++."
+	.byte "------------."
+	.byte ">++++++[<+++++++++>-]<+."
+	.byte "<."
+	.byte "+++."
+	.byte "------."
+	.byte "--------."
+	.byte ">>>++++[<++++++++>-]<+."
+	.byte 0
 
 ; conio functions unique to each platform.
 .alias _py65_putc	$f001	; Definitions for the py65mon emulator
