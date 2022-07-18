@@ -1,16 +1,24 @@
 include ../common.mk
 
 ROMS = \
+	brainf.rom \
 	life.rom \
 	mandelbrotMain.rom
 
 SOURCES =  \
+	brainf.asm \
 	life.asm \
 	mandelbrot.asm \
 	mandelbrotMain.asm
 
 TESTS =  \
 	mandelbrotTest
+
+brainf.rom: brainf.asm
+	${OPHIS} -l brainf.lst -m brainf.map --65c02 brainf.asm
+
+brainfDebug: brainf.rom
+	${PY65MON} -m 65C02 -r brainf.rom
 
 life.rom: life.asm
 	${OPHIS} -l life.lst -m life.map --65c02 life.asm
