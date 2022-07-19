@@ -5,16 +5,6 @@
 ; number of instructions. But this time using the inherent simplicity of the
 ; Brain f--k VM to enforce it.
 ;
-; Commands:
-;   <	Decrement the data pointer (dptr) to the prior cell.
-;   >	Increment the dptr to the next cell.
-;   +	Increment the byte at the dptr.
-;   -	Decrement the byte at the dptr.
-;   .	Output the byte at the dptr.
-;   ,	Input a byte and store it in the byte at the dptr.
-;   [	If byte at dptr is zero, then jump forward to the matching ].
-;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
-;
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
 
@@ -30,11 +20,17 @@
 .alias AscESC	$1B	; Escape ASCII character
 .alias AscLF	$0A	; line feed ASCII character
 .alias AscSP	$20	; space ASCII character
+
 .alias AscLT	$3C
 .alias AscGT	$3E
 .alias AscPlus	$2B
+.alias AscComma $2C
 .alias AscMinus	$2D
 .alias AscDot	$2E
+.alias AscRB	$5B
+.alias AscLB	$5D
+
+.alias cellsSize [cellsEnd - cells]
 
 ;
 ; Data segments
@@ -43,11 +39,12 @@
 .org $0080		; we'll need to use ZP addressing
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
-.space level 2		; word to hold the current loop level.
+.space lidx 2		; word to hold the matching loop token.
 
 .data BSS
 .org $0300		; page 3 is used for uninitialized data.
-.space tape 1024	; tape is currently 1K
+.space cells 1024	; cells is currently 1K
+.space cellsEnd 0
 
 .text
 
@@ -64,20 +61,22 @@
 ;
 main:
 	lda #00
-	sta level
-	sta level+1
-	jsr initTape
+	sta lidx
+	sta lidx+1
+	jsr initCells
 	lda #<helloWorld
 	sta iptr
 	lda #>helloWorld
 	sta iptr+1
 	brk
-
-initTape:
+;
+; Zero out the cells as per the define start condition.
+;
+initCells:
 .scope
-	lda #<tape
+	lda #<cells
 	sta dptr
-	lda #>tape
+	lda #>cells
 	sta dptr+1
 
 _loop:
@@ -88,102 +87,125 @@ _loop:
 	bne _over
 	inc dptr+1
 _over:	lda dptr+1
-	cmp #$04
+	cmp #>cellsEnd
 	bne _loop
 
-	; set the dptr back to the start of the tape.
-	lda #<tape
+	; set the dptr back to the start of the cells.
+	lda #<cells
 	sta dptr
-	lda #>tape
+	lda #>cells
 	sta dptr+1
 	rts
 .scend
 
+;
+; Interprets a list of commands referenced by iptr.
 runProgram:
 .scope
 _loop:
 	lda (dptr)
 	beq _exit
 
+	;   <	Decrement the data pointer (dptr) to the prior cell.
+decDptr:
 	cmp #AscLT
-	bne +
-	jsr decDptr
-	bra _next
+	bne incDptr
+.scope
+        lda dptr
+        bne _over
+        dec dptr+1
+_over:  dec dptr
+	jmp next
+.scend
 
-*	cmp #AscGT
-	bne +
-	jsr incDptr
-	bra _next
+	;   >	Increment the dptr to the next cell.
+incDptr:
+	cmp #AscGT
+	bne incCell
+.scope
+	inc dptr
+        bne _over
+        inc dptr+1
+_over:	jmp next
+.scend
 
+	;   +	Increment the byte at the dptr.
+incCell:
 *	cmp #AscPlus
-	bne +
-	jsr incCell
-	bra _next
+	bne decCell
 
-*	cmp #AscMinus
-	bne +
-	jsr decCell
-	bra _next
+	lda (dptr)
+	inc
+	sta (dptr)
+	jmp next
 
-*	cmp #AscDot
-	bne +
-	jsr outputCell
-	bra _next
+	;   -	Decrement the byte at the dptr.
+decCell:
+	cmp #AscMinus
+	bne outputCell
 
-_next:	inc iptr
+	lda (dptr)
+	dec
+	sta (dptr)
+	jmp next
+
+	;   .	Output the byte at the dptr.
+outputCell:
+	cmp #AscDot
+	bne inputCell
+
+	lda (dptr)
+	jsr _putch
+	jmp next
+
+	;   ,	Input a byte and store it in the byte at the dptr.
+inputCell:
+	cmp #AscRB
+	bne leftBracket
+
+	jsr _getch
+	sta (dptr)
+	jmp next
+
+	;   [	If byte at dptr is zero, then jump forward to the matching ].
+leftBracket:
+.scope
+	cmp #AscLB
+	bne rightBracket
+
+	inc lidx
+        bne _over
+        inc lidx+1
+
+_over:	lda (dptr)
+	bne +
+	jsr findMatching
+*
+	jmp next
+.scend
+
+	;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
+rightBracket:
+	cmp #AscRB
+	bne ignoreInput
+
+	lda (dptr)
+	bne +
+
+	jmp next
+
+	;  All other characters are ignored.
+ignoreInput:
+
+next:	inc iptr
 	bne _over
 	inc iptr+1
 _over:	bra _loop
 _exit:	rts
 .scend
 
-; Decrement the data pointer (dptr) to the prior cell.
-decDptr:
-.scope
-        lda dptr
-        bne _over
-        dec dptr+1
-_over:  dec dptr
+findMatching:
 	rts
-.scend
-
-; Increment the dptr to the next cell.
-incDptr:
-.scope
-	inc dptr
-        bne _over
-        inc dptr+1
-_over:	rts
-.scend
-
-; Increment the byte at the dptr.
-incCell:
-	lda (dptr)
-	inc
-	sta (dptr)
-	rts
-
-; Decrement the byte at the dptr.
-decCell:
-	lda (dptr)
-	dec
-	sta (dptr)
-	rts
-
-; output the cell value at dptr.
-outputCell:
-	lda (dptr)
-	jsr _putch
-	rts
-
-; input a byte and store at dptr.
-inputCell:
-	jsr _getch
-	sta (dptr)
-	rts
-
-;   [	If byte at dptr is zero, then jump forward to the matching ].
-;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
 
 helloWorld:
 	.byte ">++++++++[<+++++++++>-]<."
