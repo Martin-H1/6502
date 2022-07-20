@@ -3,7 +3,8 @@
 ;
 ; The goal of the challege is to create another Turing tarpit using the least
 ; number of instructions. But this time using the inherent simplicity of the
-; Brain f--k VM to enforce it.
+; Brain f--k VM to enforce it. Since Brain f--k is Turing complete you can (in
+; theory) compute any problem with just the instructions required to write it.
 ;
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
@@ -21,8 +22,9 @@
 .alias AscLF	$0A	; line feed ASCII character
 .alias AscSP	$20	; space ASCII character
 
-.alias AscLT	$3C
+.alias AscLT	$3C	; Character aliases for brain f commands.
 .alias AscGT	$3E
+.alias AscQues	$3F
 .alias AscPlus	$2B
 .alias AscComma $2C
 .alias AscMinus	$2D
@@ -39,7 +41,7 @@
 .org $0080		; we'll need to use ZP addressing
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
-.space lidx 2		; word to hold the matching loop token.
+.space level 1		; byte to hold current loop level.
 
 .data BSS
 .org $0300		; page 3 is used for uninitialized data.
@@ -52,6 +54,20 @@
 ; Macros
 ;
 
+.macro decw
+        lda _1
+        bne _over
+        dec _1+1
+_over:  dec _1
+.macend
+
+.macro incw
+        inc _1
+        bne _over
+        inc _1+1
+_over:
+.macend
+
 .org $8000
 .outfile "brainf.rom"
 .advance $8000
@@ -60,15 +76,13 @@
 ; Functions
 ;
 main:
-	lda #00
-	sta lidx
-	sta lidx+1
 	jsr initCells
 	lda #<helloWorld
 	sta iptr
 	lda #>helloWorld
 	sta iptr+1
 	brk
+
 ;
 ; Zero out the cells as per the define start condition.
 ;
@@ -82,11 +96,8 @@ initCells:
 _loop:
 	lda #00
 	sta (dptr)
-
-	inc dptr
-	bne _over
-	inc dptr+1
-_over:	lda dptr+1
+	`incw dptr
+	lda dptr+1
 	cmp #>cellsEnd
 	bne _loop
 
@@ -103,31 +114,24 @@ _over:	lda dptr+1
 runProgram:
 .scope
 _loop:
-	lda (dptr)
+	lda (iptr)
 	beq _exit
 
 	;   <	Decrement the data pointer (dptr) to the prior cell.
 decDptr:
 	cmp #AscLT
 	bne incDptr
-.scope
-        lda dptr
-        bne _over
-        dec dptr+1
-_over:  dec dptr
+
+	`decw dptr
 	jmp next
-.scend
 
 	;   >	Increment the dptr to the next cell.
 incDptr:
 	cmp #AscGT
 	bne incCell
-.scope
-	inc dptr
-        bne _over
-        inc dptr+1
-_over:	jmp next
-.scend
+
+	`incw dptr
+	jmp next
 
 	;   +	Increment the byte at the dptr.
 incCell:
@@ -160,7 +164,7 @@ outputCell:
 
 	;   ,	Input a byte and store it in the byte at the dptr.
 inputCell:
-	cmp #AscRB
+	cmp #AscComma
 	bne leftBracket
 
 	jsr _getch
@@ -169,31 +173,30 @@ inputCell:
 
 	;   [	If byte at dptr is zero, then jump forward to the matching ].
 leftBracket:
-.scope
 	cmp #AscLB
 	bne rightBracket
 
-	inc lidx
-        bne _over
-        inc lidx+1
-
-_over:	lda (dptr)
+	lda (dptr)
 	bne +
-	jsr findMatching
-*
-	jmp next
-.scend
+	jsr findMatchForward
+*	jmp next
 
 	;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
 rightBracket:
 	cmp #AscRB
-	bne ignoreInput
+	bne debugOut
 
 	lda (dptr)
 	bne +
+	jsr findMatchReverse
 
-	jmp next
+*	jmp next
 
+	;   ?	Print cells, iptr, and dptr
+debugOut:
+	cmp #AscQues
+	bne ignoreInput
+	
 	;  All other characters are ignored.
 ignoreInput:
 
@@ -204,8 +207,53 @@ _over:	bra _loop
 _exit:	rts
 .scend
 
-findMatching:
-	rts
+; Advances the iptr to the matching bracket.
+findMatchForward:
+.scope
+	lda #01		; Start at nesting level 1.
+	sta level
+_loop:
+	lda (iptr)	; load the instruction looking for match 
+	cmp #AscLB	; Is this is another left bracket?
+	bne +
+	inc level	; Increase nesting level
+	bra _next
+
+*	cmp #AscRB	; Is this a right bracket?
+	bne _next
+
+	dec level	; Decrease nesting level
+	beq _exit	; We've found a right bracket at matching level
+
+_next:	`incw iptr
+	bra _loop
+
+_exit:	rts
+.scend
+
+; Reverses the iptr to the matching bracket.
+findMatchReverse:
+.scope
+	lda #01		; Start at nesting level 1.
+	sta level
+_loop:
+	lda (iptr)	; load the instruction looking for match 
+	cmp #AscRB	; Is this is another right bracket?
+	bne +
+	inc level	; Increase nesting level
+	bra _next
+
+*	cmp #AscLB	; Is this a left bracket?
+	bne _next
+
+	dec level	; Decrease nesting level
+	beq _exit	; We've found a left bracket at matching level
+
+_next:	`decw iptr
+	bra _loop
+
+_exit:	rts
+.scend
 
 helloWorld:
 	.byte ">++++++++[<+++++++++>-]<."
