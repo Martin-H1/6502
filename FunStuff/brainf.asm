@@ -29,8 +29,8 @@
 .alias AscComma $2C
 .alias AscMinus	$2D
 .alias AscDot	$2E
-.alias AscRB	$5B
-.alias AscLB	$5D
+.alias AscLB	$5B
+.alias AscRB	$5D
 
 .alias cellsSize [cellsEnd - cells]
 
@@ -76,13 +76,13 @@ _over:
 ; Functions
 ;
 main:
-	jsr initCells
-	lda #<helloWorld
+	; Init the instruction pointer to the test program.
+	lda #<sierpinski
 	sta iptr
-	lda #>helloWorld
+	lda #>sierpinski
 	sta iptr+1
-	brk
 
+	; continue into initCells to zero out RAM and set the dptr.
 ;
 ; Zero out the cells as per the define start condition.
 ;
@@ -94,7 +94,7 @@ initCells:
 	sta dptr+1
 
 _loop:
-	lda #00
+	lda #$00
 	sta (dptr)
 	`incw dptr
 	lda dptr+1
@@ -106,9 +106,9 @@ _loop:
 	sta dptr
 	lda #>cells
 	sta dptr+1
-	rts
 .scend
 
+	; fall into runProgram which interts the brain f commands.
 ;
 ; Interprets a list of commands referenced by iptr.
 runProgram:
@@ -157,7 +157,6 @@ decCell:
 outputCell:
 	cmp #AscDot
 	bne inputCell
-
 	lda (dptr)
 	jsr _putch
 	jmp next
@@ -187,29 +186,30 @@ rightBracket:
 	bne debugOut
 
 	lda (dptr)
-	bne +
+	beq +
 	jsr findMatchReverse
-
 *	jmp next
 
 	;   ?	Print cells, iptr, and dptr
 debugOut:
 	cmp #AscQues
 	bne ignoreInput
-	
-	;  All other characters are ignored.
-ignoreInput:
+
+	brk		; unimplemented for now
+
+ignoreInput:		;  All other characters are ignored.
 
 next:	inc iptr
 	bne _over
 	inc iptr+1
 _over:	bra _loop
-_exit:	rts
+_exit:	brk
 .scend
 
 ; Advances the iptr to the matching bracket.
 findMatchForward:
 .scope
+	`incw iptr	; Advance past the bracket.
 	lda #01		; Start at nesting level 1.
 	sta level
 _loop:
@@ -234,6 +234,7 @@ _exit:	rts
 ; Reverses the iptr to the matching bracket.
 findMatchReverse:
 .scope
+	`decw iptr	; Backup one character
 	lda #01		; Start at nesting level 1.
 	sta level
 _loop:
@@ -269,6 +270,40 @@ helloWorld:
 	.byte "--------."
 	.byte ">>>++++[<++++++++>-]<+."
 	.byte 0
+
+; Fibonacci number generator by Daniel B Cristofani
+; This program doesn't terminate; you will have to kill it.
+fibonacci:
+	.byte ">++++++++++>+>+["
+	.byte "[+++++[>++++++++<-]>.<++++++[>--------<-]+<<<]>.>>["
+        .byte "[-]<[>+<-]>>[<<+>+>-]<[>+<-[>+<-[>+<-[>+<-[>+<-[>+<-"
+        .byte "[>+<-[>+<-[>+<-[>[-]>+>+<<<-[>+<-]]]]]]]]]]]+>>>"
+	.byte "]<<<"
+	.byte "]",0
+
+; Shows an ASCII representation of the Sierpinski triangle
+; (c) 2016 Daniel B. Cristofani
+sierpinski:
+	.byte "++++++++[>+>++++<<-]>++>>+<[-[>>+<<-]+>>]>+["
+	.byte "-<<<["
+	.byte "->[+[-]+>++>>>-<<]<[<]>>++++++[<<+++++>>-]+<<++.[-]<<"
+	.byte "]>.>+[>>]>+"
+	.byte "]", 0
+
+; Compute the "golden ratio". Because this number is infinitely long,
+; this program doesn't terminate on its own. You will have to kill it.
+golden:
+	.byte "+>>>>>>>++>+>+>+>++<["
+	.byte "  +["
+	.byte "    --[++>>--]->--["
+	.byte "      +["
+	.byte "        +<+[-<<+]++<<[-[->-[>>-]++<[<<]++<<-]+<<]>>>>-<<<<"
+	.byte "          <++<-<<++++++[<++++++++>-]<.---<[->.[-]+++++>]>[[-]>>]"
+	.byte "          ]+>>--"
+	.byte "      ]+<+[-<+<+]++>>"
+	.byte "    ]<<<<[[<<]>>[-[+++<<-]+>>-]++[<<]<<<<<+>]"
+	.byte "  >[->>[[>>>[>>]+[-[->>+>>>>-[-[+++<<[-]]+>>-]++[<<]]+<<]<-]<]]>>>>>>>"
+	.byte "]"
 
 ; conio functions unique to each platform.
 .alias _py65_putc	$f001	; Definitions for the py65mon emulator
