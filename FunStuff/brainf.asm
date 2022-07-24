@@ -113,9 +113,10 @@ _loop:
 ; Interprets a list of commands referenced by iptr.
 runProgram:
 .scope
-_loop:
+_while:			; while (*iptr != null)
 	lda (iptr)
-	beq _exit
+	bne decDptr
+	brk		; Terminate execution on null character.
 
 	;   <	Decrement the data pointer (dptr) to the prior cell.
 decDptr:
@@ -199,61 +200,50 @@ debugOut:
 
 ignoreInput:		;  All other characters are ignored.
 
-next:	inc iptr
-	bne _over
-	inc iptr+1
-_over:	bra _loop
-_exit:	brk
+next:	`incw iptr
+	bra _while
 .scend
 
 ; Advances the iptr to the matching bracket.
 findMatchForward:
 .scope
-	`incw iptr	; Advance past the bracket.
 	lda #01		; Start at nesting level 1.
 	sta level
 _loop:
-	lda (iptr)	; load the instruction looking for match 
+	`incw iptr	; Advance to the next character.
+	lda (iptr)	; load the instruction looking for match.
 	cmp #AscLB	; Is this is another left bracket?
 	bne +
 	inc level	; Increase nesting level
-	bra _next
-
-*	cmp #AscRB	; Is this a right bracket?
-	bne _next
-
-	dec level	; Decrease nesting level
-	beq _exit	; We've found a right bracket at matching level
-
-_next:	`incw iptr
 	bra _loop
 
-_exit:	rts
+*	cmp #AscRB	; Is this a right bracket?
+	bne _loop
+
+	dec level	; Decrease nesting level
+	bne _loop
+	rts 		; We've found a right bracket at matching level
 .scend
 
 ; Reverses the iptr to the matching bracket.
 findMatchReverse:
 .scope
-	`decw iptr	; Backup one character
 	lda #01		; Start at nesting level 1.
 	sta level
 _loop:
+	`decw iptr	; Backup one character
 	lda (iptr)	; load the instruction looking for match 
 	cmp #AscRB	; Is this is another right bracket?
 	bne +
 	inc level	; Increase nesting level
-	bra _next
-
-*	cmp #AscLB	; Is this a left bracket?
-	bne _next
-
-	dec level	; Decrease nesting level
-	beq _exit	; We've found a left bracket at matching level
-
-_next:	`decw iptr
 	bra _loop
 
-_exit:	rts
+*	cmp #AscLB	; Is this a left bracket?
+	bne _loop
+
+	dec level	; Decrease nesting level
+	bne _loop
+	rts		; We've found a left bracket at matching level
 .scend
 
 helloWorld:
