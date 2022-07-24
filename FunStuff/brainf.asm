@@ -76,18 +76,32 @@ _over:
 ; Functions
 ;
 main:
-	; Init the instruction pointer to the test program.
+	; Set the instruction pointer to the classic hello world program.
+	lda #<helloWorld
+	sta iptr
+	lda #>helloWorld
+	sta iptr+1
+	jsr runProgram
+
+	; set the instruction pointer to the Sierpinski triangle program.
 	lda #<sierpinski
 	sta iptr
 	lda #>sierpinski
 	sta iptr+1
+	jsr runProgram
 
-	; continue into initCells to zero out RAM and set the dptr.
-;
-; Zero out the cells as per the define start condition.
-;
-initCells:
+	; set the instruction pointer to the Golden ratio program.
+	lda #<golden
+	sta iptr
+	lda #>golden
+	sta iptr+1
+	jsr runProgram
+	brk
+
+; runProgram which interprets a list of commands referenced by iptr.
+runProgram:
 .scope
+_initCells:	; Zero out the cells as per the defined start condition.
 	lda #<cells
 	sta dptr
 	lda #>cells
@@ -108,31 +122,11 @@ _loop:
 	sta dptr+1
 .scend
 
-	; fall into runProgram which interts the brain f commands.
-;
-; Interprets a list of commands referenced by iptr.
-runProgram:
 .scope
 _while:			; while (*iptr != null)
 	lda (iptr)
-	bne decDptr
-	brk		; Terminate execution on null character.
-
-	;   <	Decrement the data pointer (dptr) to the prior cell.
-decDptr:
-	cmp #AscLT
-	bne incDptr
-
-	`decw dptr
-	jmp next
-
-	;   >	Increment the dptr to the next cell.
-incDptr:
-	cmp #AscGT
 	bne incCell
-
-	`incw dptr
-	jmp next
+	rts		; Terminate execution on null character.
 
 	;   +	Increment the byte at the dptr.
 incCell:
@@ -147,11 +141,27 @@ incCell:
 	;   -	Decrement the byte at the dptr.
 decCell:
 	cmp #AscMinus
-	bne outputCell
+	bne decDptr
 
 	lda (dptr)
 	dec
 	sta (dptr)
+	jmp next
+
+	;   <	Decrement the data pointer (dptr) to the prior cell.
+decDptr:
+	cmp #AscLT
+	bne incDptr
+
+	`decw dptr
+	jmp next
+
+	;   >	Increment the dptr to the next cell.
+incDptr:
+	cmp #AscGT
+	bne outputCell
+
+	`incw dptr
 	jmp next
 
 	;   .	Output the byte at the dptr.
@@ -177,36 +187,11 @@ leftBracket:
 	bne rightBracket
 
 	lda (dptr)
-	bne +
-	jsr findMatchForward
-*	jmp next
+	bne next
 
-	;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
-rightBracket:
-	cmp #AscRB
-	bne debugOut
-
-	lda (dptr)
-	beq +
-	jsr findMatchReverse
-*	jmp next
-
-	;   ?	Print cells, iptr, and dptr
-debugOut:
-	cmp #AscQues
-	bne ignoreInput
-
-	brk		; unimplemented for now
-
-ignoreInput:		;  All other characters are ignored.
-
-next:	`incw iptr
-	bra _while
-.scend
-
-; Advances the iptr to the matching bracket.
-findMatchForward:
+	; On zero advance the iptr to the matching bracket.
 .scope
+_findMatchForward:
 	lda #01		; Start at nesting level 1.
 	sta level
 _loop:
@@ -222,12 +207,20 @@ _loop:
 
 	dec level	; Decrease nesting level
 	bne _loop
-	rts 		; We've found a right bracket at matching level
 .scend
+	jmp next	; We've found a right bracket at matching level
 
-; Reverses the iptr to the matching bracket.
-findMatchReverse:
+	;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
+rightBracket:
+	cmp #AscRB
+	bne debugOut
+
+	lda (dptr)
+	beq next
+
+	; Reverses the iptr to the matching bracket.
 .scope
+_findMatchReverse:
 	lda #01		; Start at nesting level 1.
 	sta level
 _loop:
@@ -243,22 +236,27 @@ _loop:
 
 	dec level	; Decrease nesting level
 	bne _loop
-	rts		; We've found a left bracket at matching level
+.scend
+	; We've found a left bracket at matching level
+	jmp next
+
+	;   ?	Print cells, iptr, and dptr
+debugOut:
+	cmp #AscQues
+	bne ignoreInput
+	brk		; unimplemented for now
+
+ignoreInput:		;  All other characters are ignored.
+
+next:	`incw iptr
+	jmp _while
 .scend
 
 helloWorld:
-	.byte ">++++++++[<+++++++++>-]<."
-	.byte ">++++[<+++++++>-]<+."
-	.byte "+++++++.."
-	.byte "+++."
-	.byte ">>++++++[<+++++++>-]<++."
-	.byte "------------."
-	.byte ">++++++[<+++++++++>-]<+."
-	.byte "<."
-	.byte "+++."
-	.byte "------."
-	.byte "--------."
-	.byte ">>>++++[<++++++++>-]<+."
+	.byte "++++++++"
+	.byte "[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]"
+	.byte ">>.>---.+++++++..+++.>>.<-.<.+++."
+	.byte "------.--------.>>+.>++."
 	.byte 0
 
 ; Fibonacci number generator by Daniel B Cristofani
