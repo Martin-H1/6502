@@ -149,8 +149,8 @@ main:
 	jsr runProgram
 	brk
 
-; tokenize scans the characters and produces a token stream.
-tokenize:
+; compile scans the characters and produces a bytecode token stream.
+compile:
 .scope
 	lda #$00		; init with 0 to ease bytecode generation
 	sta zero
@@ -159,6 +159,9 @@ tokenize:
 	sta dptr
 	lda #>tokens
 	sta dptr+1
+
+	; All programs start with memory cell initialization.
+	`emitBytecode T_INIT, zero
 
 _while:	lda (iptr)
 	bne _incCell
@@ -220,7 +223,13 @@ _rightBracket:
 	cmp #AscRB
 	bne _debugOut
 
-	`pop temp
+	`pop temp		; get the return PC off the stack
+	ldy #$01		; fixup its operand field
+	lda dptr		; to point to current PC
+	sta (temp),y
+	lda dptr+1
+	iny
+	sta (temp),y
 	`emitBytecode T_BACK, temp
 	jmp _next
 
