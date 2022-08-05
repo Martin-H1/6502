@@ -6,6 +6,11 @@
 ; Brain f--k VM to enforce it. Since Brain f--k is Turing complete you can (in
 ; theory) compute any problem with just the instructions required to write it.
 ;
+; This version of the Brain f--k interpreter compiles programs into bytecode
+; and operands. When executed the bytecode invoke calls to threaded code.
+; The goal is to create a fast Brain f--k runtime than the original intepreted
+; version.
+;
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
 
@@ -25,6 +30,7 @@
 .alias AscRB	$5D
 
 .alias cellsSize [cellsEnd - cells]
+.alias bytecodeSize [bytecodeEnd - bytecode]
 
 ;
 ; Data segments
@@ -33,12 +39,17 @@
 .org $0080		; we'll need to use ZP addressing
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
-.space level 1		; byte to hold current loop level.
+.space temp 2		; word to hold popped PC for bytecode generation.
+.space fixup 2		; word to hold popped P to fixup forward branch.
+.space jmpvec 2		; vector to jump into threaded code.
 
 .data BSS
 .org $0300		; page 3 is used for uninitialized data.
 .space cells 1024	; cells is currently 1K
 .space cellsEnd 0
+
+.space bytecode 2048	; bytecode buffer is currently 2K
+.space bytecodeEnd 0
 
 .text
 
@@ -46,18 +57,39 @@
 ; Macros
 ;
 
-.macro decw
-        lda _1
-        bne _over
-        dec _1+1
-_over:  dec _1
-.macend
-
 .macro incw
         inc _1
         bne _over
         inc _1+1
 _over:
+.macend
+
+.macro addTwo
+	clc
+	lda _1
+	adc #2
+	sta _1
+	bcc _over
+	inc _1+1
+_over:
+.macend
+
+.macro emitBytecode
+	lda #<_1
+	sta (dptr)
+	`incw dptr
+	lda #>_1
+	sta (dptr)
+	`incw dptr
+.macend
+
+.macro emitOperand
+	lda _1
+	sta (dptr)
+	`incw dptr
+	lda _1+1
+	sta (dptr)
+	`incw dptr
 .macend
 
 .org $8000
@@ -90,15 +122,144 @@ main:
 	jsr runProgram
 	brk
 
-; runProgram which interprets a list of commands referenced by iptr.
 runProgram:
+	jsr compile		; translate source into bytecode
+	lda #<bytecode		; set the instruction pointer to it.
+	sta iptr
+	lda #>bytecode
+	sta iptr+1
+	jsr execute		; execute the bytecode
+	rts
+
+; compile scans the characters and produces a bytecode token stream.
+compile:
 .scope
-_initCells:	; Zero out the cells as per the defined start condition.
+	lda #<bytecode		; use dptr as the index into the bytecode
+	sta dptr
+	lda #>bytecode
+	sta dptr+1
+
+	; All programs start with memory cell initialization.
+	`emitBytecode initCells
+
+_while:	lda (iptr)
+	bne _incCell
+
+	`emitBytecode endProgram
+	rts
+
+_incCell:
+	cmp #AscPlus
+	bne _decCell
+
+	`emitBytecode incCell
+	jmp _next
+
+_decCell:
+	cmp #AscMinus
+	bne _decDptr
+
+	`emitBytecode decCell
+	jmp _next
+
+_decDptr:
+	cmp #AscLT
+	bne _incDptr
+
+	`emitBytecode decDptr
+	jmp _next
+
+_incDptr:
+	cmp #AscGT
+	bne _outputCell
+
+	`emitBytecode incDptr
+	jmp _next
+
+_outputCell:
+	cmp #AscDot
+	bne _inputCell
+
+	`emitBytecode outputCell
+	jmp _next
+
+_inputCell:
+	cmp #AscComma
+	bne _leftBracket
+
+	`emitBytecode inputCell
+	jmp _next
+
+_leftBracket:
+	cmp #AscLB
+	bne _rightBracket
+
+	lda dptr		; push current PC for later.
+	pha
+	lda dptr+1
+	pha
+
+	`emitBytecode branchForward
+	`emitOperand temp	; junk for now, fixup later.
+	jmp _next
+
+_rightBracket:
+	cmp #AscRB
+	bne _debugOut
+
+	pla			; get the return PC off the stack
+	sta fixup+1
+	sta temp+1
+	pla
+	sta fixup
+	sta temp
+
+	`addTwo fixup
+	lda dptr		; to point to current PC
+	sta (fixup)
+	`incw fixup
+	lda dptr+1
+	sta (fixup)
+	`emitBytecode branchBackward
+	`emitOperand temp
+
+	jmp _next
+
+_debugOut:
+	cmp #AscQues
+	bne _ignoreInput
+	`emitBytecode debugOut
+	jmp _next
+
+_ignoreInput:		;  All other characters are ignored.
+
+_next:	`incw iptr
+	jmp _while
+.scend
+
+; executes interprets a list of commands referenced by iptr.
+execute:
+.scope
+next:
+	lda (iptr)
+	sta jmpvec
+	`incw iptr
+	lda (iptr)
+	sta jmpvec+1
+	`incw iptr
+	jmp (jmpvec)
+.scend
+
+;
+; These subroutines function as the threaded code to execute programs.
+;
+
+initCells:
 	lda #<cells
 	sta dptr
 	lda #>cells
 	sta dptr+1
-
+.scope
 _loop:
 	lda #$00
 	sta (dptr)
@@ -112,137 +273,81 @@ _loop:
 	sta dptr
 	lda #>cells
 	sta dptr+1
+	jmp next
 .scend
 
-.scope
-_while:			; while (*iptr != null)
-	lda (iptr)
-	bne incCell
-	rts		; Terminate execution on null character.
-
-	;   +	Increment the byte at the dptr.
 incCell:
-*	cmp #AscPlus
-	bne decCell
-
 	lda (dptr)
 	inc
 	sta (dptr)
 	jmp next
 
-	;   -	Decrement the byte at the dptr.
 decCell:
-	cmp #AscMinus
-	bne decDptr
-
 	lda (dptr)
 	dec
 	sta (dptr)
 	jmp next
 
-	;   <	Decrement the data pointer (dptr) to the prior cell.
 decDptr:
-	cmp #AscLT
-	bne incDptr
-
-	`decw dptr
+	lda dptr
+	bne +
+	dec dptr+1
+*	dec dptr
 	jmp next
 
-	;   >	Increment the dptr to the next cell.
 incDptr:
-	cmp #AscGT
-	bne outputCell
-
 	`incw dptr
 	jmp next
 
-	;   .	Output the byte at the dptr.
 outputCell:
-	cmp #AscDot
-	bne inputCell
 	lda (dptr)
 	jsr _putch
 	jmp next
 
-	;   ,	Input a byte and store it in the byte at the dptr.
 inputCell:
-	cmp #AscComma
-	bne leftBracket
-
 	jsr _getch
 	sta (dptr)
 	jmp next
 
-	;   [	If byte at dptr is zero, then jump forward to the matching ].
-leftBracket:
-	cmp #AscLB
-	bne rightBracket
-
+branchForward:
 	lda (dptr)
-	bne next
+	beq +		; If zero advance the iptr to the operand.
 
-	; On zero advance the iptr to the matching bracket.
-.scope
-_findMatchForward:
-	lda #01		; Start at nesting level 1.
-	sta level
-_loop:
-	`incw iptr	; Advance to the next character.
-	lda (iptr)	; load the instruction looking for match.
-	cmp #AscLB	; Is this is another left bracket?
-	bne +
-	inc level	; Increase nesting level
-	bra _loop
-
-*	cmp #AscRB	; Is this a right bracket?
-	bne _loop
-
-	dec level	; Decrease nesting level
-	bne _loop
-.scend
-	jmp next	; We've found a right bracket at matching level
-
-	;   ]	If byte at dptr is nonzero, then loop, otherwise exit the loop.
-rightBracket:
-	cmp #AscRB
-	bne debugOut
-
-	lda (dptr)
-	beq next
-
-	; Reverses the iptr to the matching bracket.
-.scope
-_findMatchReverse:
-	lda #01		; Start at nesting level 1.
-	sta level
-_loop:
-	`decw iptr	; Backup one character
-	lda (iptr)	; load the instruction looking for match 
-	cmp #AscRB	; Is this is another right bracket?
-	bne +
-	inc level	; Increase nesting level
-	bra _loop
-
-*	cmp #AscLB	; Is this a left bracket?
-	bne _loop
-
-	dec level	; Decrease nesting level
-	bne _loop
-.scend
-	; We've found a left bracket at matching level
+	`addTwo iptr	; otherwise, consume the unused operand
 	jmp next
 
-	;   ?	Print cells, iptr, and dptr
+*	lda (iptr)	; If zero advance the iptr to the operand.
+	pha
+	`incw iptr
+	lda (iptr)
+	sta iptr+1
+	`incw iptr
+	pla
+	sta iptr
+	jmp next
+
+branchBackward:
+	lda (dptr)
+	beq +		; If not zero set the iptr to the operand.
+
+	lda (iptr)
+	pha
+	`incw iptr
+	lda (iptr)
+	sta iptr+1
+	`incw iptr
+	pla
+	sta iptr
+	jmp next
+
+*	`addTwo iptr	; otherwise consume unused operand.
+	jmp next
+
 debugOut:
-	cmp #AscQues
-	bne ignoreInput
 	brk		; unimplemented for now
 
-ignoreInput:		;  All other characters are ignored.
-
-next:	`incw iptr
-	jmp _while
-.scend
+endProgram:
+	rts			; return to calling program.
 
 helloWorld:
 	.byte "++++++++"
