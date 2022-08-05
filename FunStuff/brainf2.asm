@@ -36,6 +36,7 @@
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
 .space temp 2		; word to hold popped PC for bytecode generation.
+.space fixup		; word to hold popped P to fixup forward branch.
 .space jmpvec 2		; vector to jump into threaded code.
 
 .data BSS
@@ -203,16 +204,18 @@ _rightBracket:
 	bne _debugOut
 
 	pla			; get the return PC off the stack
+	sta fixup+1
 	sta temp+1
 	pla
+	sta fixup
 	sta temp
 
+	`addTwo fixup
 	lda dptr		; to point to current PC
-	ldy #$02		; fixup its operand field
-	sta (temp),y
+	sta (fixup)
+	`incw fixup
 	lda dptr+1
-	iny
-	sta (temp),y
+	sta (fixup)
 	`emitBytecode branchBackward
 	`emitOperand temp
 
