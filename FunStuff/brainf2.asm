@@ -25,10 +25,6 @@
 .alias AscLB	$5B
 .alias AscRB	$5D
 
-; Stack byte position on stack.
-.alias TOS_LSB	$00
-.alias TOS_MSB	$01
-
 .alias cellsSize [cellsEnd - cells]
 .alias bytecodeSize [bytecodeEnd - bytecode]
 
@@ -40,7 +36,6 @@
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
 .space temp 2		; word to hold popped PC for bytecode generation.
-.space level 1
 .space jmpvec 2		; vector to jump into threaded code.
 
 .data BSS
@@ -48,7 +43,7 @@
 .space cells 1024	; cells is currently 1K
 .space cellsEnd 0
 
-.space bytecode 1024	; token buffer is currently 1K
+.space bytecode 2048	; bytecode buffer is currently 2K
 .space bytecodeEnd 0
 
 .text
@@ -57,13 +52,6 @@
 ; Macros
 ;
 
-.macro decw
-        lda _1
-        bne _over
-        dec _1+1
-_over:  dec _1
-.macend
-
 .macro incw
         inc _1
         bne _over
@@ -71,26 +59,14 @@ _over:  dec _1
 _over:
 .macend
 
-.macro stackInit
- 	ldx #$7f	; Init the zero page data stack pointer
-.macend
-
-.macro push
-	dex
-	dex
+.macro addTwo
+	clc
 	lda _1
-	sta TOS_LSB,x
-	lda _1+1
-	sta TOS_MSB,x
-.macend
-
-.macro pop
-	lda TOS_LSB,x
+	adc #2
 	sta _1
-	lda TOS_MSB,x
-	sta _1+1
-	inx
-	inx
+	bcc _over
+	inc _1+1
+_over:
 .macend
 
 .macro emitBytecode
@@ -119,8 +95,6 @@ _over:
 ; Functions
 ;
 main:
-	`stackInit
-
 	; Set the instruction pointer to the classic hello world program.
 	lda #<helloWorld
 	sta iptr
@@ -215,7 +189,11 @@ _leftBracket:
 	cmp #AscLB
 	bne _rightBracket
 
-	`push dptr		; push current PC for later.
+	lda dptr		; push current PC for later.
+	pha
+	lda dptr+1
+	pha
+
 	`emitBytecode branchForward
 	`emitOperand temp	; junk for now, fixup later.
 	jmp _next
@@ -224,7 +202,11 @@ _rightBracket:
 	cmp #AscRB
 	bne _debugOut
 
-	`pop temp		; get the return PC off the stack
+	pla			; get the return PC off the stack
+	sta temp+1
+	pla
+	sta temp
+
 	lda dptr		; to point to current PC
 	ldy #$02		; fixup its operand field
 	sta (temp),y
@@ -300,7 +282,10 @@ decCell:
 	jmp next
 
 decDptr:
-	`decw dptr
+	lda dptr
+	bne +
+	dec dptr+1
+*	dec dptr
 	jmp next
 
 incDptr:
@@ -319,36 +304,36 @@ inputCell:
 
 branchForward:
 	lda (dptr)
-	bne +
-	; If zero advance the iptr to the operand.
-	lda (iptr)
+	beq +		; If zero advance the iptr to the operand.
+
+	`addTwo iptr	; otherwise, consume the unused operand
+	jmp next
+
+*	lda (iptr)	; If zero advance the iptr to the operand.
 	pha
 	`incw iptr
 	lda (iptr)
 	sta iptr+1
+	`incw iptr
 	pla
 	sta iptr
-	jmp next
-
-*	`incw iptr		; consume the unused operand
-	`incw iptr
 	jmp next
 
 branchBackward:
 	lda (dptr)
-	beq +
-	; If not zero set the iptr to the operand.
+	beq +		; If not zero set the iptr to the operand.
+
 	lda (iptr)
 	pha
 	`incw iptr
 	lda (iptr)
 	sta iptr+1
+	`incw iptr
 	pla
 	sta iptr
 	jmp next
 
-*	`incw iptr
-	`incw iptr
+*	`addTwo iptr	; otherwise consume unused operand.
 	jmp next
 
 debugOut:
