@@ -14,14 +14,6 @@
 ;
 
 ; Character set (ASCII)
-.alias AscBS	$08	; backspace ASCII character
-.alias AscCC	$03	; break (Control-C) ASCII character
-.alias AscCR	$0D	; carriage return ASCII character
-.alias AscDEL	$7F	; DEL ASCII character
-.alias AscESC	$1B	; Escape ASCII character
-.alias AscLF	$0A	; line feed ASCII character
-.alias AscSP	$20	; space ASCII character
-
 .alias AscLT	$3C	; Character aliases for brain f commands.
 .alias AscGT	$3E
 .alias AscQues	$3F
