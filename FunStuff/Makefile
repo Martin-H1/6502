@@ -2,11 +2,13 @@ include ../common.mk
 
 ROMS = \
 	brainf.rom \
+	brainfdtc.rom \
 	life.rom \
 	mandelbrotMain.rom
 
 SOURCES =  \
 	brainf.asm \
+	brainfdtc.asm \
 	life.asm \
 	mandelbrot.asm \
 	mandelbrotMain.asm
@@ -19,6 +21,12 @@ brainf.rom: brainf.asm
 
 brainfDebug: brainf.rom
 	${PY65MON} -m 65C02 -r brainf.rom
+
+brainfdtc.rom: brainfdtc.asm
+	${OPHIS} -l brainfdtc.lst -m brainfdtc.map --65c02 brainfdtc.asm
+
+brainfdtcDebug: brainfdtc.rom
+	${PY65MON} -m 65C02 -r brainfdtc.rom
 
 life.rom: life.asm
 	${OPHIS} -l life.lst -m life.map --65c02 life.asm

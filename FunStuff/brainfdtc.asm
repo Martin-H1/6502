@@ -1,11 +1,15 @@
 ; -----------------------------------------------------------------------------
 ; Implementation of the Brain F--k virtual machine in 6502 assembly.
 ;
-; A version of the Brain f--k interpreter that compiles programs into bytecode
+; The goal of the challege is to create another Turing tarpit using the least
+; number of instructions. But this time using the inherent simplicity of the
+; Brain f--k VM to enforce it. Since Brain f--k is Turing complete you can (in
+; theory) compute any problem with just the instructions required to write it.
+;
+; This version of the Brain f--k interpreter compiles programs into bytecode
 ; and operands. When executed the bytecode invoke calls to threaded code.
-; The goal is to create a fast Brain f--k runtime than an intepreted version.
-; Since Brain f--k is Turing complete you can (in theory) compute any problem
-; with just the instructions required to write it.
+; The goal is to create a fast Brain f--k runtime than the original intepreted
+; version.
 ;
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
@@ -36,7 +40,7 @@
 .space dptr 2		; word to hold the data pointer.
 .space iptr 2		; word to hold the instruction pointer.
 .space temp 2		; word to hold popped PC for bytecode generation.
-.space fixup		; word to hold popped P to fixup forward branch.
+.space fixup 2		; word to hold popped P to fixup forward branch.
 .space jmpvec 2		; vector to jump into threaded code.
 
 .data BSS
@@ -89,7 +93,7 @@ _over:
 .macend
 
 .org $8000
-.outfile "brainf2.rom"
+.outfile "brainfdtc.rom"
 .advance $8000
 
 ;
