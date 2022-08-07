@@ -71,24 +71,36 @@ _over:  dec _1
 _over:
 .macend
 
-.macro addTwo
+.macro addwbi			; add word and byte immediate
 	clc
 	lda _1
-	adc #2
+	adc #_2
 	sta _1
 	bcc _over
 	inc _1+1
 _over:
 .macend
 
-.macro addThree
-	clc
+.macro push		; push on stack matching RTS byte order.
+	lda _1+1
+	pha
 	lda _1
-	adc #3
+	pha
+.macend
+
+.macro pushInd		; push indirect on stack matching RTS byte order.
+	lda (_1)
+	pha
+	`decw _1
+	lda (_1)
+	pha
+.macend
+
+.macro pop		; pop from stack matching RTS byte order.
+	pla
 	sta _1
-	bcc _over
-	inc _1+1
-_over:
+	pla
+	sta _1+1
 .macend
 
 .macro emitCode
@@ -209,10 +221,7 @@ _leftBracket:
 	cmp #AscLB
 	bne _rightBracket
 
-	lda dptr		; push current PC for later.
-	pha
-	lda dptr+1
-	pha
+	`push dptr		; push current PC for later.
 
 	`emitCode branchForward
 	`emitArgument temp	; junk for now, fixup later.
@@ -223,11 +232,11 @@ _rightBracket:
 	bne _debugOut
 
 	pla			; get the return PC off the stack
-	sta fixup+1
-	sta temp+1
-	pla
 	sta fixup
 	sta temp
+	pla
+	sta fixup+1
+	sta temp+1
 
 	lda dptr		; current PC - 1 is the address for the fixup
 	sta retpc
@@ -235,7 +244,7 @@ _rightBracket:
 	sta retpc+1
 	`decw retpc		; RTS address is - 1 from desired target
 
-	`addThree fixup
+	`addwbi fixup,3
 	lda retpc
 	sta (fixup)
 	`incw fixup
@@ -299,10 +308,7 @@ decCell:
 	rts
 
 decDptr:
-	lda dptr
-	bne +
-	dec dptr+1
-*	dec dptr
+	`decw dptr
 	rts
 
 incDptr:
@@ -323,54 +329,28 @@ branchForward:
 	lda (dptr)
 	beq +		; Branch on data cell containing zero
 
-	pla		; Get return address off stack
-	sta iptr
-	pla
-	sta iptr+1
-	`addTwo iptr	; advance past the unused argument.
-	lda iptr+1	; push back on stack
-	pha
-	lda iptr
-	pha
+	`pop iptr	; Get return address off stack
+	`addwbi iptr,2	; advance past the unused argument.
+	`push iptr	; push back on stack
 	rts
 
-*	pla		; Use return address as pointer to argument
-	sta iptr
-	pla
-	sta iptr+1
-	`addTwo iptr
-	lda (iptr)	; Use the argument as the new return address.
-	pha
-	`decw iptr
-	lda (iptr)
-	pha
+*	`pop iptr	; Use return address as pointer to argument
+	`addwbi iptr,2	; point to argument MSB
+	`pushInd iptr	; Use the argument as the new return address.
 	rts
 
 branchBackward:
 	lda (dptr)
 	beq +		; Branch on data cell containing zero
 
-	pla		; Use return address as pointer to argument
-	sta iptr
-	pla
-	sta iptr+1
-	`addTwo iptr
-	lda (iptr)	; Use the argument as the new return address.
-	pha
-	`decw iptr
-	lda (iptr)
-	pha
+	`pop iptr	; Use return address as pointer to argument
+	`addwbi iptr,2
+	`pushInd iptr	; Use the argument as the new return address.
 	rts
 
-*	pla		; Get return address off stack
-	sta iptr
-	pla
-	sta iptr+1
-	`addTwo iptr	; advance past the unused argument.
-	lda iptr+1	; push back on stack
-	pha
-	lda iptr
-	pha
+*	`pop iptr	; Get return address off stack
+	`addwbi iptr,2	; advance past the unused argument.
+	`push iptr	; push back on stack
 	rts
 
 debugOut:
