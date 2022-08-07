@@ -1,13 +1,47 @@
 ; -----------------------------------------------------------------------------
-; Game of life but created to illustrate my Turing Tarpit coding challenge.
-; See http://en.wikipedia.org/wiki/Conway's_Game_of_Life
-;
+; Game of life created to illustrate my Turing Tarpit coding challenge.
+; See http://en.wikipedia.org/wiki/Conway's_Game_of_Life and
+;     http://forum.6502.org/viewtopic.php?f=2&t=7262
+; 
 ; The goal of the challege is to use the least number of instructions and
 ; towards that end I avoid the X and Y registers, their instructions, as well
 ; as packed decimal.
-; 
+;
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
+
+; Turing Tarpit Challege Overview
+; The PDP-8 was tremendously influential to the early computer industry. It
+; was cost engineered and Gordon Bell thought through the minimum number of
+; required instructions because it was built from descrete logic, so every
+; gate counted. The result was the PDP-8 had eight memory instructions, an
+; I/O instruction, NOP, and eight accumulator bit manipulation instructions.
+;
+; Like the 6502 the PDP-8's accumulator wasn't wide enough to hold an address,
+; so the PDP-8 used pages with two addressing modes: PC and zero page. The
+; 6502 has the latter, but the closet thing to PC page is PC relative and
+; immediate mode. Because the PDP-8 was a word machine it didn't have variable
+; length instructions to hold an absolute address as an additional operands.
+;
+; The link register (carry bit) was the only processor status bit, so no zero,
+; negative, or overflow bits and associated branch instructions. But there was
+; a test for zero in the accumulator and branch instruction.
+;
+; So for the Turing Tarpit challenge I will restrict myself to the following
+; 65c02 instructions and addressing modes.
+; Accumulator operations: and, ora, eor, adc, clc, sec, inc, ror, rol, and asl
+; Memory operations: lda #, lda absolute, lda (), sta absolute, and sta ()
+; Flow control instructions: bcc, bcs, beq, bne, jmp absolute, jmp (),
+; jsr absolute, rts, and nop
+;
+; That's 18 instructions which is a notable reduction from the 6502's 56, and
+; matches the PDP-8. I'm allowing absolute addressing because the 6502 is a
+; byte machine and one or two byte operands are intrinsic to such a design.
+; I'm also allowing the zero control bit because the PDP-8 had skip on zero.
+; 
+; Notable missing instructions are DEC and SBC. Subtraction is done by adding
+; the two's complement, and precompute negative quantities. This was common on
+; early machines with a discrete logic ALU.
 
 ;
 ; Aliases
@@ -37,7 +71,7 @@
 ;
 .data ZPDATA
 .org $0080		; we'll need to use ZP addressing
-.space row 2		; iterators for the row and column.
+.space row 2		; iterators for the row and column.	
 .space col 2
 
 .space temp 2		; working variables
@@ -60,8 +94,15 @@
 ; Macros
 ;
 
+.macro incw
+        inc _1
+        bne _over
+        inc _1+1
+_over:
+.macend
+
 ; adds two 16 bit quantities and puts the result in the first argument
-.macro addConst
+.macro addwi
 	clc
 	lda _1
 	adc #<_2
@@ -69,6 +110,20 @@
 	lda _1+1
 	adc #>_2
         sta _1+1
+.macend
+
+; branch of word is zero
+.macro beqw
+	lda _1
+	ora _1+1
+	beq _2
+.macend
+
+; branch if word not equal zero
+.macro bnew
+	lda _1
+	ora _1+1
+	bne _2
 .macend
 
 .macro compareConst
@@ -95,14 +150,14 @@ _notequal:
 _done:
 .macend
 
-.macro loadConst
+.macro loadwi
 	lda #<_2
 	sta _1
 	lda #>_2
 	sta _1+1
 .macend
 
-.macro printWord
+.macro printw
 	lda _1+1
 	jsr printa
 	lda _1
@@ -117,22 +172,21 @@ _done:
 ; Functions
 ;
 main:
-	`loadConst colJmpPtr, printWelcome
+	jsr printWelcome
+	`loadwi colJmpPtr, printWelcome
 	jsr currErase
-	`loadConst col, 30
+	`loadwi col, 30
 	jsr colPlus
-	`printWord temp
+	`printw temp
 	lda #AscLF
 	jsr _putch
 	brk
 
 _welcome:
-	.byte "Game of Life",0
+	.byte "Game of Life",AscLF,0
 printWelcome:
-	`loadConst strPtr, _welcome
+	`loadwi strPtr, _welcome
 	jsr cputs
-	lda #AscLF
-	jsr _putch
 	rts
 
 ; Sets the row offset to zero
@@ -142,9 +196,9 @@ rowFirst:
 	sta row+1
 	rts
 
-; Advances the offset by the width.
+; Advances the row offset by the width.
 rowNext:
-	`addConst row, width
+	`addwi row, width
 	rts
 
 ; At end if current offset exceeds array size.
@@ -172,10 +226,10 @@ rowPlus:
 	sta temp
 	lda row+1
 	sta temp+1
-	`addConst temp, width
+	`addwi temp, width
 	`compareConst temp, size
 	bmi +
-	`loadConst temp, 0
+	`loadwi temp, 0
 *	rts
 
 ; Returns index of the column before current using wrap around.
@@ -185,10 +239,10 @@ rowMinus:
 	sta temp
 	lda row+1
 	sta temp+1
-	`addConst temp, negWidth
+	`addwi temp, negWidth
 	lda temp+1
 	bpl +
-	`loadConst temp, lastRow
+	`loadwi temp, lastRow
 *	rts
 .scend
 
@@ -199,7 +253,7 @@ colFirst:
 	rts
 
 colNext:
-	`addConst col, 1
+	`addwi col, 1
 	rts
 
 colAtEnd?:
@@ -227,54 +281,53 @@ colPlus:
 	sta temp
 	lda col+1
 	sta temp+1
-	`addConst temp, 1
+	`addwi temp, 1
 	`compareConst temp, width
 	bmi +
-	`loadConst temp, 0
+	`loadwi temp, 0
 *	rts
 .scend
 
 ; Returns index of the column before current using wrap around.
 colMinus:
+	`beqw col, _else
 	lda col
 	sta temp
 	lda col+1
 	sta temp+1
-	`addConst temp, negOne
-	lda temp+1
-	bpl +
-	`loadConst temp, lastCol
-*	rts
+	`addwi temp, negOne
+	rts
+_else:
+	`loadwi temp, lastCol
+	rts
 
 ; moves bytes from next gen to current.
 moveCurr:
 .scope
-	`loadConst genCurrPtr, gen_curr
-	`loadConst genNextPtr, gen_next
-	`loadConst temp, 0
+	`loadwi genCurrPtr, gen_curr
+	`loadwi genNextPtr, gen_next
+	`loadwi temp, size
 _loop:
 	lda (genNextPtr)
 	sta (genCurrPtr)
-	`addConst genCurrPtr, 1
-	`addConst genNextPtr, 1
-	`addConst temp, 1
-	`compareConst temp, size
-	bmi _loop
+	`addwi genCurrPtr, 1
+	`addwi genNextPtr, 1
+	`addwi temp, negOne
+	`bnew temp, _loop
 	rts
 .scend
 
 ; clears curr array to clear out junk in ram
 currErase:
 .scope
-	`loadConst genCurrPtr, gen_curr
-	`loadConst temp, 0
+	`loadwi genCurrPtr, gen_curr
+	`loadwi temp, size
 _loop:
-	lda #00
+	lda #$00
 	sta (genCurrPtr)
-	`addConst genCurrPtr, 1
-	`addConst temp, 1
-	`compareConst temp, size
-	bmi _loop
+	`incw genCurrPtr
+	`addwi temp, negOne
+	`bnew temp, _loop
 	rts
 .scend
 
@@ -371,12 +424,12 @@ calcCell:
 	rts
 
 calcRow:
-	`loadConst colJmpPtr, calcCell
+	`loadwi colJmpPtr, calcCell
 	jsr colForEach
 	rts
 
 calcGen:
-	`loadConst rowJmpPtr, calcRow
+	`loadwi rowJmpPtr, calcRow
 	jsr rowForEach
 	jsr moveCurr
 	rts
@@ -385,6 +438,26 @@ life:
 ;    page
 ;     begin calcGen 0 0 at-xy .curr key? until ;
 	rts
+
+; Test cases taken from Rosetta code's implementation
+blinker:
+	.byte " |***",0
+toad:
+	.byte " ***| ***",0
+pentomino:
+	.byte " **| **| *",0
+pi:
+	.byte " **| **|**",0
+glider:
+	.byte "  *|  *|***",0
+pulsar:
+	.byte " *****|*   *",0
+ship:
+	.byte "  ****|*   *|    *|   *",0
+pentadecathalon:
+	.byte " **********",0
+clock:
+	.byte "  *|  **|**|  *",0
 
 ; prints the accumulator contents in hex to the console.
 printa:
@@ -411,8 +484,8 @@ cputs:
 _loop:	lda (strPtr)		; get the string via address from zero page
 	beq _exit		; if it is a zero, we quit and leave
 	jsr _putch		; if not, write one character
-	`addConst strPtr, 1	; get the next byte
-	bra _loop
+	`addwi strPtr, 1	; get the next byte
+	jmp _loop
 _exit:	rts
 .scend
 
