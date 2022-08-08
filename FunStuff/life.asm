@@ -3,25 +3,25 @@
 ; See http://en.wikipedia.org/wiki/Conway's_Game_of_Life and
 ;     http://forum.6502.org/viewtopic.php?f=2&t=7262
 ; 
-; The goal of the challege is to use the least number of instructions and
-; towards that end I avoid the X and Y registers, their instructions, as well
-; as packed decimal.
+; The goal of the challege is to use a reduced number of instructions as
+; described below. The idea is to get a feel for what it would be like to
+; program early machines such as the PDP-8.
 ;
 ; Martin Heermance <mheermance@gmail.com>
 ; -----------------------------------------------------------------------------
 
 ; Turing Tarpit Challege Overview
-; The PDP-8 was tremendously influential to the early computer industry. It
-; was cost engineered and Gordon Bell thought through the minimum number of
-; required instructions because it was built from descrete logic, so every
-; gate counted. The result was the PDP-8 had eight memory instructions, an
-; I/O instruction, NOP, and eight accumulator bit manipulation instructions.
+; The PDP-8 was tremendously influential to the early computer industry. It was
+; cost engineered and Gordon Bell thought through the minimum number of viable
+; instructions because it was built from descrete logic, so every gate counted.
+; The resulting PDP-8 had eight memory instructions, an I/O instruction, NOP,
+; and eight accumulator bit manipulation instructions.
 ;
 ; Like the 6502 the PDP-8's accumulator wasn't wide enough to hold an address,
 ; so the PDP-8 used pages with two addressing modes: PC and zero page. The
 ; 6502 has the latter, but the closet thing to PC page is PC relative and
 ; immediate mode. Because the PDP-8 was a word machine it didn't have variable
-; length instructions to hold an absolute address as an additional operands.
+; length instructions to hold an absolute address as additional operands.
 ;
 ; The link register (carry bit) was the only processor status bit, so no zero,
 ; negative, or overflow bits and associated branch instructions. But there was
@@ -29,6 +29,7 @@
 ;
 ; So for the Turing Tarpit challenge I will restrict myself to the following
 ; 65c02 instructions and addressing modes.
+;
 ; Accumulator operations: and, ora, eor, adc, clc, sec, inc, ror, rol, and asl
 ; Memory operations: lda #, lda absolute, lda (), sta absolute, and sta ()
 ; Flow control instructions: bcc, bcs, beq, bne, jmp absolute, jmp (),
@@ -39,9 +40,10 @@
 ; byte machine and one or two byte operands are intrinsic to such a design.
 ; I'm also allowing the zero control bit because the PDP-8 had skip on zero.
 ; 
-; Notable missing instructions are DEC and SBC. Subtraction is done by adding
-; the two's complement, and precompute negative quantities. This was common on
-; early machines with a discrete logic ALU.
+; Notable missing instructions are CMP, DEC and SBC. Subtraction is done by
+; adding the two's complement, and precompute negative quantities. CMP is
+; a nondestructive subtract. DEC is achieved by adding negative one. This was
+; actually common on early machines with a discrete logic ALU.
 
 ;
 ; Aliases
@@ -82,6 +84,7 @@
 
 .space genCurrPtr 2	; ponters to index into memory.
 .space genNextPtr 2
+.space asave 1		; place to store accumulator when needed.
 
 .data BSS
 .org $0300		; page 3 is used for uninitialized data.
@@ -109,6 +112,16 @@ _over:
 	sta _1
 	lda _1+1
 	adc #>_2
+        sta _1+1
+.macend
+
+.macro addw
+	clc
+	lda _1
+	adc _2
+	sta _1
+	lda _1+1
+	adc _2+1
         sta _1+1
 .macend
 
@@ -154,6 +167,13 @@ _done:
 	lda #<_2
 	sta _1
 	lda #>_2
+	sta _1+1
+.macend
+
+.macro loadw
+	lda _2
+	sta _1
+	lda _2+1
 	sta _1+1
 .macend
 
@@ -333,36 +353,49 @@ _loop:
 
 ; retrieve a cell value from the current generation
 curr@:
-;;    + gen_curr + c@ ;
+	`loadw temp, gen_curr
+	`addw temp, row
+	`addw temp, col
+	lda (temp)
 	rts
 
 ; stores a value into a cell from the current generation
 curr!:
-;; 	+ gen_curr + c!
+	sta asave
+	`loadw temp, gen_curr
+	`addw temp, row
+	`addw temp, col
+	lda asave
+	sta (temp)
 	rts
 
-; Parses a pattern string into current board.
+; Parses a pattern string referenced by strptr into current board.
 ; This function is unsafe and will over write memory.
 currParse:
+.scope
 	jsr currErase
 	jsr rowFirst
 	jsr colFirst
-;    1-
-;     for
-;        dup c@
-;        dup '|' <> if
-;            bl <> 1 and
-;             col @ row @ curr!
-;	    colNext
-; 	else
-;	    drop
-;	    rowNext
-; 	    colFirst
-;	then
-; 	1+
-;     next
-;     drop ;
-	rts
+_while:	lda (strptr)
+	beq _exit
+	clc
+	adc #$84	; two's compliment of 7C | 
+	beq _else
+	lda (strptr)
+	clc
+	adc #$D6	; two's compliment of 2A *
+	bne +
+	lda #$01
+	jsr curr!
+*	jsr colNext
+	jmp _next
+_else:
+	jsr rowNext
+	jsr colFirst
+_next:	`incw strptr
+	jmp _while
+_exit:	rts
+.scend
 
 currCell:
 ;    col @ row @ curr@
@@ -441,23 +474,23 @@ life:
 
 ; Test cases taken from Rosetta code's implementation
 blinker:
-	.byte " |***",0
+	.byte "|***",0
 toad:
-	.byte " ***| ***",0
+	.byte "***| ***",0
 pentomino:
-	.byte " **| **| *",0
+	.byte "**| **| *",0
 pi:
-	.byte " **| **|**",0
+	.byte "**| **|**",0
 glider:
-	.byte "  *|  *|***",0
+	.byte " *|  *|***",0
 pulsar:
-	.byte " *****|*   *",0
+	.byte "*****|*   *",0
 ship:
-	.byte "  ****|*   *|    *|   *",0
+	.byte " ****|*   *|    *|   *",0
 pentadecathalon:
-	.byte " **********",0
+	.byte "**********",0
 clock:
-	.byte "  *|  **|**|  *",0
+	.byte " *|  **|**|  *",0
 
 ; prints the accumulator contents in hex to the console.
 printa:
