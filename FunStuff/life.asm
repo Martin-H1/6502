@@ -73,7 +73,7 @@
 ;
 .data ZPDATA
 .org $0080		; we'll need to use ZP addressing
-.space row 2		; iterators for the row and column.	
+.space row 2		; iterators for the row and column.
 .space col 2
 
 .space temp 2		; working variables
@@ -104,7 +104,7 @@
 _over:
 .macend
 
-; adds two 16 bit quantities and puts the result in the first argument
+; adds a 16 bit word and a constant and puts the result in first argument.
 .macro addwi
 	clc
 	lda _1
@@ -115,6 +115,7 @@ _over:
         sta _1+1
 .macend
 
+; adds two 16 bit words and puts the result in the first argument
 .macro addw
 	clc
 	lda _1
@@ -163,6 +164,7 @@ _notequal:
 _done:
 .macend
 
+; loads a word from a constant.
 .macro loadwi
 	lda #<_2
 	sta _1
@@ -170,6 +172,7 @@ _done:
 	sta _1+1
 .macend
 
+; loads a word from another word.
 .macro loadw
 	lda _2
 	sta _1
@@ -184,6 +187,12 @@ _done:
 	jsr printa
 .macend
 
+; Prints a line feed.
+.macro printcr
+        lda #AscLF
+        jsr _putch
+.macend
+
 .org $8000
 .outfile "life.rom"
 .advance $8000
@@ -193,13 +202,9 @@ _done:
 ;
 main:
 	jsr printWelcome
-	`loadwi colJmpPtr, printWelcome
-	jsr currErase
-	`loadwi col, 30
-	jsr colPlus
-	`printw temp
-	lda #AscLF
-	jsr _putch
+	`loadwi strPtr, glider
+	jsr parseCurr
+	jsr printCurr
 	brk
 
 _welcome:
@@ -223,7 +228,10 @@ rowNext:
 
 ; At end if current offset exceeds array size.
 rowAtEnd?:
-	`compareConst row, size
+	`loadw temp, row
+	`addwi temp, negSize
+	lda temp
+	ora temp+1
 	rts
 
 ; Iterator used to apply a function to the rows.
@@ -234,7 +242,7 @@ _loop:
 	jsr _indirectJmp
 	jsr rowNext
 	jsr rowAtEnd?
-	bmi _loop
+	bne _loop
 	rts
 _indirectJmp:
 	jmp (rowJmpPtr)
@@ -242,10 +250,7 @@ _indirectJmp:
 
 ; Returns index of the row after current using wrap around.
 rowPlus:
-	lda row
-	sta temp
-	lda row+1
-	sta temp+1
+	`loadw temp, row
 	`addwi temp, width
 	`compareConst temp, size
 	bmi +
@@ -273,11 +278,14 @@ colFirst:
 	rts
 
 colNext:
-	`addwi col, 1
+	`incw col
 	rts
 
 colAtEnd?:
-	`compareConst col, width
+	`loadw temp, col
+	`addwi temp, negWidth
+	lda temp
+	ora temp+1
 	rts
 
 ; Iterator used to apply a function to the cols.
@@ -288,7 +296,7 @@ _loop:
 	jsr _indirectJmp
 	jsr colNext
 	jsr colAtEnd?
-	bmi _loop
+	bne _loop
 	rts
 _indirectJmp:
 	jmp (colJmpPtr)
@@ -297,10 +305,7 @@ _indirectJmp:
 ; Returns index of the column after current using wrap around.
 colPlus:
 .scope
-	lda col
-	sta temp
-	lda col+1
-	sta temp+1
+	`loadw temp, col
 	`addwi temp, 1
 	`compareConst temp, width
 	bmi +
@@ -310,6 +315,7 @@ colPlus:
 
 ; Returns index of the column before current using wrap around.
 colMinus:
+.scope
 	`beqw col, _else
 	lda col
 	sta temp
@@ -320,6 +326,7 @@ colMinus:
 _else:
 	`loadwi temp, lastCol
 	rts
+.scend
 
 ; moves bytes from next gen to current.
 moveCurr:
@@ -338,7 +345,7 @@ _loop:
 .scend
 
 ; clears curr array to clear out junk in ram
-currErase:
+eraseCurr:
 .scope
 	`loadwi genCurrPtr, gen_curr
 	`loadwi temp, size
@@ -353,27 +360,27 @@ _loop:
 
 ; retrieve a cell value from the current generation
 curr@:
-	`loadw temp, gen_curr
-	`addw temp, row
-	`addw temp, col
-	lda (temp)
+	`loadwi genCurrPtr, gen_curr
+	`addw genCurrPtr, row
+	`addw genCurrPtr, col
+	lda (genCurrPtr)
 	rts
 
 ; stores a value into a cell from the current generation
 curr!:
 	sta asave
-	`loadw temp, gen_curr
-	`addw temp, row
-	`addw temp, col
+	`loadwi genCurrPtr, gen_curr
+	`addw genCurrPtr, row
+	`addw genCurrPtr, col
 	lda asave
-	sta (temp)
+	sta (genCurrPtr)
 	rts
 
 ; Parses a pattern string referenced by strptr into current board.
 ; This function is unsafe and will over write memory.
-currParse:
+parseCurr:
 .scope
-	jsr currErase
+	jsr eraseCurr
 	jsr rowFirst
 	jsr colFirst
 _while:	lda (strptr)
@@ -397,31 +404,31 @@ _next:	`incw strptr
 _exit:	rts
 .scend
 
-currCell:
-;    col @ row @ curr@
-;     if '*' else '.' then
-;     emit ;
+printCurrCell:
+.scope
+	jsr curr@
+	beq _else
+	lda #'\*
+	jsr _putch
 	rts
+_else:
+	lda #'\.
+	jsr _putch
+	rts
+.scend
 
 ; prints the row from the current generation to output
-currRow:
-;	cr ['] .cell colForEach
+printCurrRow:
+	`loadwi colJmpPtr, printCurrCell
+	`printcr
+	jsr colForEach
 	rts
 
 ; Prints the current board generation to standard output
-curr:
-;     ['] .currRow rowForEach
-;     cr ;
-	rts
-
-; retrieve a cell value from the next generation
-next@:
-;    + gen_next + c@ ;
-	rts
-
-; stores a cell into the next generation
-next!:
-;    + gen_next + c! ;
+printCurr:
+	`loadwi rowJmpPtr, printCurrRow
+	`printcr
+	jsr rowForEach
 	rts
 
 ; computes the sum of the neigbors of the current cell.
