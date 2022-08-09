@@ -196,6 +196,8 @@ main:
 	`loadwi strPtr, glider
 	jsr parseCurr
 	jsr printCurr
+	jsr calcGen
+	jsr printCurr
 	brk
 
 _welcome:
@@ -367,6 +369,16 @@ curr!:
 	sta (genCurrPtr)
 	rts
 
+; stores a value into a cell from the next generation
+next!:
+	sta asave
+	`loadwi genNextPtr, gen_next
+	`addw genNextPtr, row
+	`addw genNextPtr, col
+	lda asave
+	sta (genNextPtr)
+	rts
+
 ; Parses a pattern string referenced by strPtr into current board.
 ; This function is unsafe and will over write memory.
 parseCurr:
@@ -425,7 +437,7 @@ printCurr:
 	rts
 
 ; Computes the sum of the neigbors of the current cell.
-; Note: without a stack this is run on function.
+; Note: without a stack this is run on function. Macros make it tolerable.
 calcSum:
 	jsr colMinus		; calculate neighboring cell indecies.
 	jsr rowMinus
@@ -475,24 +487,38 @@ calcSum:
 	rts
 
 calcCell:
+.scope
 	jsr calcSum
 
 	; Unless explicitly marked live, all cells die in the next generation.
 	; There are two rules we'll apply to mark a cell live.
+	`loadw param1, rowP
+	`loadw param2, colP
+	jsr curr@
+	sta temp
+	bne _live		; Is the current cell dead?
+	lda asave
+	clc
+	adc #$fd		; A dead cell with 3 live neighbors
+	beq _markLive		; becomes a live cell.
+	rts			; otherwise stay dead!
 
-	; Is the current cell dead?
+_markLive:
+	lda #$01
+	jsr next!
+	rts			; else
 
-	; col @ row @ curr@ 0=
-	; if
-	; Any dead cell with three live neighbours becomes a live cell.
-	; 3 =
-	; else
-	; Any live cell with two or three live neighbours survives.
-	; dup 2 >= swap 3 <= and
-	; then
-	; 1 and
-	; col @ row @ next! ;
-	rts
+_live:	; Any live cell with two or three live neighbours survives.
+	lda asave
+	clc
+	adc #$fe
+	beq _markLive
+	lda asave
+	clc
+	adc #$fd
+	beq _markLive
+	rts			; otherwise stay dead!
+.scend
 
 calcRow:
 	`loadwi colJmpPtr, calcCell
