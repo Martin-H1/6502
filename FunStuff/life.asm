@@ -87,14 +87,17 @@
 .space rowJmpPtr 2	; ponters to functions for iteration.
 .space colJmpPtr 2
 
+.space genCurr 2	; ponters to buffers to allow gen swapping
+.space genNext 2
+
 .space genCurrPtr 2	; ponters to index into memory.
 .space genNextPtr 2
 .space asave 1		; place to store accumulator when needed.
 
 .data BSS
 .org $0300		; page 3 is used for uninitialized data.
-.space gen_curr 768	; allocate arrays to hold current and next gens
-.space gen_next 768
+.space buff_curr 768	; allocate arrays to hold current and next gens
+.space buff_next 768
 
 .text
 
@@ -169,7 +172,7 @@ _over:
 .macend
 
 .macro currAt
-	`loadwi genCurrPtr, gen_curr
+	`loadw genCurrPtr, genCurr
 	`addw genCurrPtr, _1
 	`addw genCurrPtr, _2
 	lda (genCurrPtr)
@@ -315,26 +318,17 @@ _else:
 	rts
 .scend
 
-; moves bytes from next gen to current.
+; Swaps current and next pointer.
 moveCurr:
-.scope
-	`loadwi genCurrPtr, gen_curr
-	`loadwi genNextPtr, gen_next
-	`loadwi temp, size
-_loop:
-	lda (genNextPtr)
-	sta (genCurrPtr)
-	`incw genCurrPtr
-	`incw genNextPtr
-	`addwi temp, negOne
-	`bnew temp, _loop
+	`loadw temp, genCurr
+	`loadw genCurr, genNext
+	`loadw genNext, temp
 	rts
-.scend
 
 ; clears curr array to clear out junk in ram
 eraseCurr:
 .scope
-	`loadwi genCurrPtr, gen_curr
+	`loadw genCurrPtr, genCurr
 	`loadwi temp, size
 _loop:
 	lda #$00
@@ -353,7 +347,7 @@ curr@:
 ; stores a value into a cell from the current generation
 curr!:
 	sta asave
-	`loadwi genCurrPtr, gen_curr
+	`loadw genCurrPtr, genCurr
 	`addw genCurrPtr, row
 	`addw genCurrPtr, col
 	lda asave
@@ -363,7 +357,7 @@ curr!:
 ; stores a value into a cell from the next generation
 next!:
 	sta asave
-	`loadwi genNextPtr, gen_next
+	`loadw genNextPtr, genNext
 	`addw genNextPtr, row
 	`addw genNextPtr, col
 	lda asave
@@ -374,6 +368,9 @@ next!:
 ; This function is unsafe and will over write memory.
 parseCurr:
 .scope
+	; initialize the buffer pointers.
+	`loadwi genCurr, buff_curr
+	`loadwi genNext, buff_next
 	jsr eraseCurr
 	jsr rowFirst
 	jsr colFirst
