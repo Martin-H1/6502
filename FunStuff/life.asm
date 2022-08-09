@@ -76,6 +76,11 @@
 .space row 2		; iterators for the row and column.
 .space col 2
 
+.space rowM 2		; Row and column minus values
+.space colM 2
+.space rowP 2		; Row and column plus values
+.space colP 2
+
 .space retval 2		; variable for function return values.
 .space temp 2		; working variable
 .space strPtr 2		; pointer used for string processing.
@@ -127,6 +132,13 @@ _over:
         sta _1+1
 .macend
 
+; adds the accumulator to a byte sum.
+.macro addToSum
+	clc
+	adc _1
+	sta _1
+.macend
+
 ; branch of word is zero
 .macro beqw
 	lda _1
@@ -168,6 +180,14 @@ _over:
 .macro printcr
         lda #AscLF
         jsr _putch
+.macend
+
+; retrieves a cell value from the current generation.
+.macro currAt
+	`loadwi genCurrPtr, gen_curr
+	`addw genCurrPtr, _1
+	`addw genCurrPtr, _2
+	lda (genCurrPtr)
 .macend
 
 .org $8000
@@ -228,12 +248,12 @@ _indirectJmp:
 ; Returns index of the row after current using wrap around.
 rowPlus:
 .scope
-	`loadw retval, row	; calculate the next row
-	`addwi retval, width
-	`addwi retval, negSize	; check if zero?
-	`beqw retval, _else
-	`loadw retval, row	; otherwise redo calculation.
-	`addwi retval, width
+	`loadw rowP, row	; calculate the next row
+	`addwi rowP, width
+	`addwi rowP, negSize	; check if zero?
+	`beqw rowP, _else
+	`loadw rowP, row	; otherwise redo calculation.
+	`addwi rowP, width
 _else:	rts			; on wrap around return zero
 .scend
 
@@ -241,11 +261,11 @@ _else:	rts			; on wrap around return zero
 rowMinus:
 .scope
 	`beqw row, _else
-	`loadw retval, row
-	`addwi retval, negWidth
+	`loadw rowM, row
+	`addwi rowM, negWidth
 	rts
 _else:
-	`loadwi retval, lastRow
+	`loadwi rowM, lastRow
 	rts
 .scend
 
@@ -283,13 +303,13 @@ _indirectJmp:
 ; Returns index of the column after current using wrap around.
 colPlus:
 .scope
-	`loadw retval, col	; calculate the next row
-	`incw retval
-	`addwi retval, negWidth	; check if zero?
-	`beqw retval, _else
-	`loadw retval, col	; otherwise redo calculation.
-	`incw retval
-	`addwi retval, width
+	`loadw colP, col	; calculate the next row
+	`incw colP
+	`addwi colP, negWidth	; check if zero?
+	`beqw colP, _else
+	`loadw colP, col	; otherwise redo calculation.
+	`incw colP
+	`addwi colP, width
 _else:	rts			; on wrap around return zero
 .scend
 
@@ -297,11 +317,11 @@ _else:	rts			; on wrap around return zero
 colMinus:
 .scope
 	`beqw col, _else
-	`loadw retval, col
-	`addwi retval, negOne
+	`loadw colM, col
+	`addwi colM, negOne
 	rts
 _else:
-	`loadwi retval, lastCol
+	`loadwi colM, lastCol
 	rts
 .scend
 
@@ -408,16 +428,29 @@ printCurr:
 	jsr rowForEach
 	rts
 
-; computes the sum of the neigbors of the current cell.
+; Computes the sum of the neigbors of the current cell.
+; Note: without a stack this is run on function.
 calcSum:
-;   col-  row-  curr@
-;   col @ row-  curr@ +
-;   col+  row-  curr@ +
-;   col-  row @ curr@ +
-;   col+  row @ curr@ +
-;   col-  row+  curr@ +
-;   col @ row+  curr@ +
-;   col+  row+  curr@ + ;
+	jsr colMinus		; calculate neighboring cell indecies.
+	jsr rowMinus
+	jsr colPlus
+	jsr rowPlus
+	`currAt rowM, colM	; Sum cell values for all eight neighbors.
+	sta asave
+	`currAt rowM, col
+	`addToSum asave
+	`currAt rowM, colP
+	`addToSum asave
+	`currAt row, colM
+	`addToSum asave
+	`currAt row, colP
+	`addToSum asave
+	`currAt rowP, colM
+	`addToSum asave
+	`currAt rowP, col
+	`addToSum asave
+	`currAt rowP, colP
+	`addToSum asave
 	rts
 
 calcCell:
