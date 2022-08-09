@@ -76,7 +76,8 @@
 .space row 2		; iterators for the row and column.
 .space col 2
 
-.space temp 2		; working variables
+.space retval 2		; variable for function return values.
+.space temp 2		; working variable
 .space strPtr 2		; pointer used for string processing.
 
 .space rowJmpPtr 2	; ponters to functions for iteration.
@@ -138,30 +139,6 @@ _over:
 	lda _1
 	ora _1+1
 	bne _2
-.macend
-
-.macro compareConst
-	lda _1
-	cmp #<_2
-	beq _equal
-
-	lda _1+1		; low bytes are not equal, compare MSB
-	sbc #>_2
-	ora #$01		; Make Zero Flag 0 because we're not equal
-	bvs _overflow
-	bra _notequal
-
-_equal:				; low bytes are equal, so we compare high bytes
-	lda _1+1
-	sbc #>_2
-	bvc _done
-
-_overflow:			; handle overflow because we use signed numbers
-	eor #$80		; complement negative flag
-
-_notequal:
-	ora #$01		; if overflow, we can't be equal
-_done:
 .macend
 
 ; loads a word from a constant.
@@ -228,10 +205,10 @@ rowNext:
 
 ; At end if current offset exceeds array size.
 rowAtEnd?:
-	`loadw temp, row
-	`addwi temp, negSize
-	lda temp
-	ora temp+1
+	`loadw retval, row
+	`addwi retval, negSize
+	lda retval
+	ora retval+1
 	rts
 
 ; Iterator used to apply a function to the rows.
@@ -250,25 +227,26 @@ _indirectJmp:
 
 ; Returns index of the row after current using wrap around.
 rowPlus:
-	`loadw temp, row
-	`addwi temp, width
-	`compareConst temp, size
-	bmi +
-	`loadwi temp, 0
-*	rts
+.scope
+	`loadw retval, row	; calculate the next row
+	`addwi retval, width
+	`addwi retval, negSize	; check if zero?
+	`beqw retval, _else
+	`loadw retval, row	; otherwise redo calculation.
+	`addwi retval, width
+_else:	rts			; on wrap around return zero
+.scend
 
 ; Returns index of the column before current using wrap around.
 rowMinus:
 .scope
-	lda row
-	sta temp
-	lda row+1
-	sta temp+1
-	`addwi temp, negWidth
-	lda temp+1
-	bpl +
-	`loadwi temp, lastRow
-*	rts
+	`beqw row, _else
+	`loadw retval, row
+	`addwi retval, negWidth
+	rts
+_else:
+	`loadwi retval, lastRow
+	rts
 .scend
 
 colFirst:
@@ -282,10 +260,10 @@ colNext:
 	rts
 
 colAtEnd?:
-	`loadw temp, col
-	`addwi temp, negWidth
-	lda temp
-	ora temp+1
+	`loadw retval, col
+	`addwi retval, negWidth
+	lda retval
+	ora retval+1
 	rts
 
 ; Iterator used to apply a function to the cols.
@@ -305,26 +283,25 @@ _indirectJmp:
 ; Returns index of the column after current using wrap around.
 colPlus:
 .scope
-	`loadw temp, col
-	`addwi temp, 1
-	`compareConst temp, width
-	bmi +
-	`loadwi temp, 0
-*	rts
+	`loadw retval, col	; calculate the next row
+	`incw retval
+	`addwi retval, negWidth	; check if zero?
+	`beqw retval, _else
+	`loadw retval, col	; otherwise redo calculation.
+	`incw retval
+	`addwi retval, width
+_else:	rts			; on wrap around return zero
 .scend
 
 ; Returns index of the column before current using wrap around.
 colMinus:
 .scope
 	`beqw col, _else
-	lda col
-	sta temp
-	lda col+1
-	sta temp+1
-	`addwi temp, negOne
+	`loadw retval, col
+	`addwi retval, negOne
 	rts
 _else:
-	`loadwi temp, lastCol
+	`loadwi retval, lastCol
 	rts
 .scend
 
@@ -337,8 +314,8 @@ moveCurr:
 _loop:
 	lda (genNextPtr)
 	sta (genCurrPtr)
-	`addwi genCurrPtr, 1
-	`addwi genNextPtr, 1
+	`incw genCurrPtr
+	`incw genNextPtr
 	`addwi temp, negOne
 	`bnew temp, _loop
 	rts
@@ -524,7 +501,7 @@ cputs:
 _loop:	lda (strPtr)		; get the string via address from zero page
 	beq _exit		; if it is a zero, we quit and leave
 	jsr _putch		; if not, write one character
-	`addwi strPtr, 1	; get the next byte
+	`incw strPtr		; get the next byte
 	jmp _loop
 _exit:	rts
 .scend
