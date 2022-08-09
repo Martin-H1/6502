@@ -79,9 +79,6 @@
 .space rowP 2		; Row and column plus values
 .space colP 2
 
-; General purpose "register" locations for paramets and return values
-.space param1 2		; input argument to function.
-.space param2 2		; input argument to function.
 .space retval 2		; variable for function return values.
 
 .space temp 2		; working variable
@@ -171,11 +168,11 @@ _over:
 	sta _1+1
 .macend
 
-.macro printw
-	lda _1+1
-	jsr printa
-	lda _1
-	jsr printa
+.macro currAt
+	`loadwi genCurrPtr, gen_curr
+	`addw genCurrPtr, _1
+	`addw genCurrPtr, _2
+	lda (genCurrPtr)
 .macend
 
 ; Prints a line feed.
@@ -195,9 +192,7 @@ main:
 	jsr printWelcome
 	`loadwi strPtr, glider
 	jsr parseCurr
-	jsr printCurr
-	jsr calcGen
-	jsr printCurr
+	jsr life
 	brk
 
 _welcome:
@@ -354,8 +349,8 @@ _loop:
 ; retrieve a cell value from the current generation
 curr@:
 	`loadwi genCurrPtr, gen_curr
-	`addw genCurrPtr, param1
-	`addw genCurrPtr, param2
+	`addw genCurrPtr, row
+	`addw genCurrPtr, col
 	lda (genCurrPtr)
 	rts
 
@@ -409,8 +404,6 @@ _exit:	rts
 
 printCurrCell:
 .scope
-	`loadw param1, row
-	`loadw param2, col
 	jsr curr@
 	beq _else
 	lda #'\*
@@ -445,44 +438,28 @@ calcSum:
 	jsr rowPlus
 
 	; Sum cell values for all eight neighbors.
-	`loadw param1, rowM
-	`loadw param2, colM
-	jsr curr@
+	`currAt rowM, colM
 	sta asave
 
-	`loadw param1, rowM
-	`loadw param2, col
-	jsr curr@
+	`currAt rowM, col
 	`addToSum asave
 
-	`loadw param1, rowM
-	`loadw param2, colP
-	jsr curr@
+	`currAt rowM, colP
 	`addToSum asave
 
-	`loadw param1, row
-	`loadw param2, colM
-	jsr curr@
+	`currAt row, colM
 	`addToSum asave
 
-	`loadw param1, row
-	`loadw param2, colP
-	jsr curr@
+	`currAt row, colP
 	`addToSum asave
 
-	`loadw param1, rowP
-	`loadw param2, colM
-	jsr curr@
+	`currAt rowP, colM
 	`addToSum asave
 
-	`loadw param1, rowP
-	`loadw param2, col
-	jsr curr@
+	`currAt rowP, col
 	`addToSum asave
 
-	`loadw param1, rowP
-	`loadw param2, colP
-	jsr curr@
+	`currAt rowP, colP
 	`addToSum asave
 	rts
 
@@ -492,8 +469,6 @@ calcCell:
 
 	; Unless explicitly marked live, all cells die in the next generation.
 	; There are two rules we'll apply to mark a cell live.
-	`loadw param1, rowP
-	`loadw param2, colP
 	jsr curr@
 	sta temp
 	bne _live		; Is the current cell dead?
@@ -501,7 +476,11 @@ calcCell:
 	clc
 	adc #$fd		; A dead cell with 3 live neighbors
 	beq _markLive		; becomes a live cell.
-	rts			; otherwise stay dead!
+
+_markDead:			; otherwise stay dead!
+	lda #$00
+	jsr next!
+	rts
 
 _markLive:
 	lda #$01
@@ -517,7 +496,7 @@ _live:	; Any live cell with two or three live neighbours survives.
 	clc
 	adc #$fd
 	beq _markLive
-	rts			; otherwise stay dead!
+	jmp _markDead
 .scend
 
 calcRow:
@@ -532,9 +511,12 @@ calcGen:
 	rts
 
 life:
-;    page
-;     begin calcGen 0 0 at-xy .curr key? until ;
-	rts
+.scope
+_loop:
+	jsr printCurr
+	jsr calcGen
+	jmp _loop
+.scend
 
 ; Test cases taken from Rosetta code's implementation
 blinker:
@@ -555,24 +537,6 @@ pentadecathalon:
 	.byte "**********",0
 clock:
 	.byte " *|  **|**|  *",0
-
-; prints the accumulator contents in hex to the console.
-printa:
-	pha
-	lsr
-	lsr
-	lsr
-	lsr
-	jsr _print_nybble
-	pla
-	and #$0f
-_print_nybble:
-	sed
-	clc
-	adc #$90	        	; Produce $90-$99 or $00-$05
-	adc #$40			; Produce $30-$39 or $41-$46
-	cld
-	jmp _putch
 
 ; cputs is like the MSDOS console I/O function. It prints a null terminated
 ; string to the console using _putch.
