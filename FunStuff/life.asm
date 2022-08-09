@@ -65,8 +65,6 @@
 .alias negOne $ffff	; precomputed negative quantities to avoid subtraction
 .alias negSize [0-size]
 .alias negWidth [0-width]
-.alias lastCol [width-1]
-.alias lastRow [size-width]
 
 ;
 ; Data segments
@@ -81,7 +79,11 @@
 .space rowP 2		; Row and column plus values
 .space colP 2
 
+; General purpose "register" locations for paramets and return values
+.space param1 2		; input argument to function.
+.space param2 2		; input argument to function.
 .space retval 2		; variable for function return values.
+
 .space temp 2		; working variable
 .space strPtr 2		; pointer used for string processing.
 
@@ -182,14 +184,6 @@ _over:
         jsr _putch
 .macend
 
-; retrieves a cell value from the current generation.
-.macro currAt
-	`loadwi genCurrPtr, gen_curr
-	`addw genCurrPtr, _1
-	`addw genCurrPtr, _2
-	lda (genCurrPtr)
-.macend
-
 .org $8000
 .outfile "life.rom"
 .advance $8000
@@ -265,7 +259,7 @@ rowMinus:
 	`addwi rowM, negWidth
 	rts
 _else:
-	`loadwi rowM, lastRow
+	`loadwi rowM, [size-width]
 	rts
 .scend
 
@@ -321,7 +315,7 @@ colMinus:
 	`addwi colM, negOne
 	rts
 _else:
-	`loadwi colM, lastCol
+	`loadwi colM, [width-1]
 	rts
 .scend
 
@@ -358,8 +352,8 @@ _loop:
 ; retrieve a cell value from the current generation
 curr@:
 	`loadwi genCurrPtr, gen_curr
-	`addw genCurrPtr, row
-	`addw genCurrPtr, col
+	`addw genCurrPtr, param1
+	`addw genCurrPtr, param2
 	lda (genCurrPtr)
 	rts
 
@@ -373,19 +367,19 @@ curr!:
 	sta (genCurrPtr)
 	rts
 
-; Parses a pattern string referenced by strptr into current board.
+; Parses a pattern string referenced by strPtr into current board.
 ; This function is unsafe and will over write memory.
 parseCurr:
 .scope
 	jsr eraseCurr
 	jsr rowFirst
 	jsr colFirst
-_while:	lda (strptr)
+_while:	lda (strPtr)
 	beq _exit
 	clc
 	adc #$84	; two's compliment of 7C | 
 	beq _else
-	lda (strptr)
+	lda (strPtr)
 	clc
 	adc #$D6	; two's compliment of 2A *
 	bne +
@@ -396,13 +390,15 @@ _while:	lda (strptr)
 _else:
 	jsr rowNext
 	jsr colFirst
-_next:	`incw strptr
+_next:	`incw strPtr
 	jmp _while
 _exit:	rts
 .scend
 
 printCurrCell:
 .scope
+	`loadw param1, row
+	`loadw param2, col
 	jsr curr@
 	beq _else
 	lda #'\*
@@ -424,8 +420,8 @@ printCurrRow:
 ; Prints the current board generation to standard output
 printCurr:
 	`loadwi rowJmpPtr, printCurrRow
-	`printcr
 	jsr rowForEach
+	`printcr
 	rts
 
 ; Computes the sum of the neigbors of the current cell.
@@ -435,21 +431,46 @@ calcSum:
 	jsr rowMinus
 	jsr colPlus
 	jsr rowPlus
-	`currAt rowM, colM	; Sum cell values for all eight neighbors.
+
+	; Sum cell values for all eight neighbors.
+	`loadw param1, rowM
+	`loadw param2, colM
+	jsr curr@
 	sta asave
-	`currAt rowM, col
+
+	`loadw param1, rowM
+	`loadw param2, col
+	jsr curr@
 	`addToSum asave
-	`currAt rowM, colP
+
+	`loadw param1, rowM
+	`loadw param2, colP
+	jsr curr@
 	`addToSum asave
-	`currAt row, colM
+
+	`loadw param1, row
+	`loadw param2, colM
+	jsr curr@
 	`addToSum asave
-	`currAt row, colP
+
+	`loadw param1, row
+	`loadw param2, colP
+	jsr curr@
 	`addToSum asave
-	`currAt rowP, colM
+
+	`loadw param1, rowP
+	`loadw param2, colM
+	jsr curr@
 	`addToSum asave
-	`currAt rowP, col
+
+	`loadw param1, rowP
+	`loadw param2, col
+	jsr curr@
 	`addToSum asave
-	`currAt rowP, colP
+
+	`loadw param1, rowP
+	`loadw param2, colP
+	jsr curr@
 	`addToSum asave
 	rts
 
