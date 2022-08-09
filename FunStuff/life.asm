@@ -300,7 +300,6 @@ colPlus:
 	`beqw colP, _else
 	`loadw colP, col	; otherwise redo calculation.
 	`incw colP
-	`addwi colP, width
 _else:	rts			; on wrap around return zero
 .scend
 
@@ -348,10 +347,7 @@ _loop:
 
 ; retrieve a cell value from the current generation
 curr@:
-	`loadwi genCurrPtr, gen_curr
-	`addw genCurrPtr, row
-	`addw genCurrPtr, col
-	lda (genCurrPtr)
+	`currAt row, col
 	rts
 
 ; stores a value into a cell from the current generation
@@ -417,7 +413,6 @@ _else:
 
 ; prints the row from the current generation to output
 printCurrRow:
-	`loadwi colJmpPtr, printCurrCell
 	`printcr
 	jsr colForEach
 	rts
@@ -425,6 +420,7 @@ printCurrRow:
 ; Prints the current board generation to standard output
 printCurr:
 	`loadwi rowJmpPtr, printCurrRow
+	`loadwi colJmpPtr, printCurrCell
 	jsr rowForEach
 	`printcr
 	rts
@@ -470,22 +466,13 @@ calcCell:
 	; Unless explicitly marked live, all cells die in the next generation.
 	; There are two rules we'll apply to mark a cell live.
 	jsr curr@
-	sta temp
 	bne _live		; Is the current cell dead?
+
 	lda asave
 	clc
 	adc #$fd		; A dead cell with 3 live neighbors
 	beq _markLive		; becomes a live cell.
-
-_markDead:			; otherwise stay dead!
-	lda #$00
-	jsr next!
-	rts
-
-_markLive:
-	lda #$01
-	jsr next!
-	rts			; else
+	bne _markDead
 
 _live:	; Any live cell with two or three live neighbours survives.
 	lda asave
@@ -496,16 +483,25 @@ _live:	; Any live cell with two or three live neighbours survives.
 	clc
 	adc #$fd
 	beq _markLive
-	jmp _markDead
+
+_markDead:			; otherwise stay dead!
+	lda #$00
+	jsr next!
+	rts
+
+_markLive:
+	lda #$01
+	jsr next!
+	rts			; else
 .scend
 
 calcRow:
-	`loadwi colJmpPtr, calcCell
 	jsr colForEach
 	rts
 
 calcGen:
 	`loadwi rowJmpPtr, calcRow
+	`loadwi colJmpPtr, calcCell
 	jsr rowForEach
 	jsr moveCurr
 	rts
