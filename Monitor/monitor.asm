@@ -143,9 +143,7 @@ monitorNmi:
 
 monitorHelp:
 .scope
-	`callBiosCputs _helpText
-	rts
-
+	jsr biosCPuts
 _helpText:
 	.byte AscCR,AscLF,"Current commands are :",AscCR,AscLF
 	.byte "Syntax = {} required, [] optional, HHHH hex address, DD hex data"
@@ -166,7 +164,7 @@ _helpText:
 	.byte "{HHHH.HHHH>HHHH{W}{Return} - Write data in RAM to EEPROM",AscCR,AscLF
 	.byte "{!}{Return} - Enter Assembler",AscCR,AscLF
 	.byte "{?}{Return} - Print menu of commands",AscCR,AscLF, $00
-
+	rts
 .scend
 
 .scend

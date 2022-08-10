@@ -35,39 +35,12 @@
 ; Data segments
 ;
 
-; BIOS zero page data, and usage is transient. User programs can use
-; these locations as long as they understand a BIOS call alters them.
-
-.data MONZP
-.org $00fc
-
-.space BIOSARG1 2
-.space BIOSARG2 2
-.text
-
 ;
 ; Macros
 ;
 .macro callBiosInit
-	lda #<_1
-	sta BIOSARG1
-	lda #>_1
-	sta BIOSARG1+1
-
-	lda #<_2
-	sta BIOSARG2
-	lda #>_2
-	sta BIOSARG2+1
-
 	jsr biosInit
-.macend
-
-.macro callBiosCputs
-	lda #<_1
-	sta BIOSARG1
-	lda #>_1
-	sta BIOSARG1+1
-	jsr biosCputs
+	.word _1, _2
 .macend
 
 ;

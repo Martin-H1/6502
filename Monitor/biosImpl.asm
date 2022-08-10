@@ -16,6 +16,11 @@
 ;
 ; Data segments
 ;
+
+.data MONZP
+.org $00fc
+.space _tmpPtr 2
+
 .data MONDATA
 
 .space _tib	$50	; a line buffer for buffered reads.
@@ -24,8 +29,8 @@
 .space _readIdx	$01	; current read position in the buffer.
 .space _STDOUT	2	; pointer to console output routine.
 .space _STDIN	2	; pointer to console input routine.
+.space _zpsave	2	; space to hold ZP bytes to be restored from here.
 .space _echo	$01	; control echo during line edit mode.
-
 .text
 
 ;
@@ -52,20 +57,49 @@ _skip:
 
 ; Initializes I/O vectors and TIB state.
 biosInitImpl:
-	lda BIOSARG1
-	sta _STDIN
-	lda BIOSARG1+1
-	sta _STDIN+1
-
-	lda BIOSARG2
-	sta _STDOUT
-	lda BIOSARG2+1
-	sta _STDOUT+1
-	
-	stz _echo
+.scope
+	stz _echo		; Init biosState variables.
 	stz _readIdx
 	stz _writeIdx
+
+	lda _tmpPtr		; Save the page zero byte during usage
+	sta _zpSave
+	lda _tmpPtr+1
+	sta _zpSave+1
+	pla			; pull the return address of the stack.
+	sta _tmpPtr
+	pla
+	sta _tmpPtr+1
+	phy			; Save Y and use to index argument bytes.
+	ldy #1
+	lda (_tmpPtr),y
+	sta _STDIN
+	iny
+	lda (_tmpPtr),y
+	sta _STDIN+1
+	iny
+	lda (_tmpPtr),y
+	sta _STDOUT
+	iny
+	lda (_tmpPtr),y
+	sta _STDOUT+1
+	tya
+	clc
+	adc _tmpPtr
+	sta _tmpPtr
+	bcc _over
+	inc _tmpPtr+1
+_over:	ply
+	lda _tmpPtr+1
+	pha
+	lda _tmpPtr
+	pha
+	lda _zpSave		; Restore the page zero byte during usage
+	sta _tmpPtr
+	lda _zpSave+1
+	sta _tmpPtr+1
 	rts
+.scend
 
 ; Output ctrl-G to beep speaker.
 biosBellImpl:
@@ -123,21 +157,35 @@ _getch:
 .scend
 
 ; cputs is like the MSDOS console I/O function. It prints a null terminated
-; string to the console using putch.
+; string to the console using putch. That string is inline in the code and
+; is accessed via the return address on the stack.
+; input - the return address on the call stack.
+; output - updated return address.
 biosCputsImpl:
 .scope
+	pla			; pull the return address of the stack.
+	sta _tmpPtr
+	pla
+	sta _tmpPtr+1
+	inc _tmpPtr		; advance to inlined data.
+	bne _loop
+	inc _tmpPtr+1
 	phy
 	ldy #0
 _loop:
-	lda (BIOSARG1),y	; get the string via address from zero page
+	lda (_tmpPtr),y		; get the string via address from zero page
 	beq _exit		; if it is a zero, we quit and leave
-	jsr biosPutch		; if not, write one character
+	jsr biosPutchImpl	; if not, write one character
 	iny			; advance to the next character
 	bne _loop
-	inc BIOSARG1+1		; advance to the next page
+	inc _tmpPtr+1		; advance to the next page
 	bra _loop
 _exit:
 	ply
+	lda _tmpPtr+1		; retore the return address
+	pha
+	lda _tmpPtr
+	pha
 	rts
 .scend
 
