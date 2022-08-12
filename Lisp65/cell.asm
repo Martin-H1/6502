@@ -340,7 +340,7 @@ _dispatch:
 _NoneToString:
 _NumberToString:
 	`fetch
-	jsr printtos
+	jsr printTosDecS
 	`drop
 	rts
 
