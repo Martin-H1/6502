@@ -13,10 +13,6 @@
 ;
 ; Data segments
 ;
-.data BSS
-.space _gthan 2		; a counter cell.
-
-.text
 
 ;
 ; Macros
@@ -133,37 +129,40 @@ printTosDecS:
 ; I got this off the 6502 forum and I am unsure who wrote it.
 printTosDec:
 .scope
+	`dup
 	lda #0			; null delimiter for print
 	pha
+	`advance
 _prnum2:			; divide TOS by 10
 	lda #0
-	sta _gthan+1		; clr BCD
+	sta TOS_MSB,x		; clr BCD
 	lda #16
-	sta _gthan		; {>} = loop counter
+	sta TOS_LSB,x		; {>} = loop counter
 _prdiv1:
-	asl TOS_LSB,x		; TOS is gradually replaced
-	rol TOS_MSB,x		; with the quotient
-	rol _gthan+1		; BCD result is gradually replaced
-	lda _gthan+1		; with the remainder
+	asl NOS_LSB,x		; TOS is gradually replaced
+	rol NOS_MSB,x		; with the quotient
+	rol TOS_MSB,x		; BCD result is gradually replaced
+	lda TOS_MSB,x		; with the remainder
 	sec
 	sbc #10			; partial BCD >= 10 ?
 	bcc _prdiv2
-	sta _gthan+1		; yes: update the partial result
-	inc TOS_LSB,x		; set low bit in partial quotient
+	sta TOS_MSB,x		; yes: update the partial result
+	inc NOS_LSB,x		; set low bit in partial quotient
 _prdiv2:
-	dec _gthan
+	dec TOS_LSB,x
 	bne _prdiv1		; loop 16 times
-	lda _gthan+1
+	lda TOS_MSB,x
 	ora #\'0		; convert BCD result to ASCII
 	pha			; stack digits in ascending
-	lda TOS_LSB,x		; order ('0' for zero)
-	ora TOS_MSB,x
+	lda NOS_LSB,x		; order ('0' for zero)
+	ora NOS_MSB,x
 	bne _prnum2		; } until TOS is 0
 	pla
 _prnum3:
 	jsr putch		; print digits in descending
 	pla			; order until delimiter is
 	bne _prnum3		; encountered
+	`drop
 	`drop
 rts
 .scend
