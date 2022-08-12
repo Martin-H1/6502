@@ -310,11 +310,12 @@ arshift_test:
 _name:	.byte "*** mstar test ***",0
 mstar_test:
 	`println _name
-	`pushi $ffff
-	`pushi 0
+	`pushi 37
+	`pushi 43
 	jsr mstar
-	jsr printstack
 	`drop
+	jsr printTosDecS
+	`printcr
 	`drop
 
 	`pushi $0ff0
