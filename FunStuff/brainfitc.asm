@@ -190,7 +190,7 @@ _inputCell:
 	cmp #AscComma
 	bne _leftBracket
 
-	`emitCode incCell,inputCellEnd
+	`emitCode inputCell,inputCellEnd
 	jmp _next
 
 _leftBracket:

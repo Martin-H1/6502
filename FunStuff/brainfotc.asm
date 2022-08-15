@@ -240,7 +240,7 @@ _inputCell:
 	cmp #AscComma
 	bne _leftBracket
 
-	`emitCode incCell,inputCellEnd
+	`emitCode inputCell,inputCellEnd
 	lda #StateDefault
 	sta state
 	jmp _next

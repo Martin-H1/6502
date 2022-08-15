@@ -262,7 +262,7 @@ _inputCell:
 	bne _leftBracket
 
 	jsr processState
-	`emitCode incCell,inputCellEnd
+	`emitCode inputCell,inputCellEnd
 	lda #0
 	sta cellCmpValid
 	jmp _next
