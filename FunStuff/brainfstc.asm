@@ -410,7 +410,10 @@ _getch:
 .scope
 *	lda _py65_getc
 	beq -
-	rts
+	cmp #13		; convert CR to LF so as to be compliant on Windows
+	bne +
+	lda #10
+*	rts
 .scend
 
 _putch:

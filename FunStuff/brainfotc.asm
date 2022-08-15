@@ -240,7 +240,7 @@ _inputCell:
 	cmp #AscComma
 	bne _leftBracket
 
-	`emitCode incCell,inputCellEnd
+	`emitCode inputCell,inputCellEnd
 	lda #StateDefault
 	sta state
 	jmp _next
@@ -615,7 +615,10 @@ _getch:
 .scope
 *	lda _py65_getc
 	beq -
-	rts
+	cmp #13		; convert CR to LF so as to be compliant on Windows
+	bne +
+	lda #10
+*	rts
 .scend
 
 _putch:
