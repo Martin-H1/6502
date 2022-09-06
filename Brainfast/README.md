@@ -11,8 +11,10 @@ solve any computable problem with just the code in this repo.
 Also, this code is the end product of several prior versions. Each of which
 improved performance over the previous. The first was a pure interpreter.
 The second was a direct thread code interpreter. The third version was a
-subroutine threaded interpreter. The final version was a compiler was a
-complier that produced directlt executable code.
+subroutine threaded interpreter. The final version was a compiler that
+produced directl executable code, as well as optimizing successive increment
+or decrement operations into higher level operations (e.g. addition or
+subtraction).
 
 The performance of the compiler was heads and tails faster than even the
 subroutine threaded interpreter. This demonstates the cost of the JSR and
