@@ -12,7 +12,7 @@ Also, this code is the end product of several prior versions. Each of which
 improved performance over the previous. The first was a pure interpreter.
 The second was a direct thread code interpreter. The third version was a
 subroutine threaded interpreter. The final version was a compiler that
-produced directl executable code, as well as optimizing successive increment
+produced direct executable code, as well as optimizing successive increment
 or decrement operations into higher level operations (e.g. addition or
 subtraction).
 
