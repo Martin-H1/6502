@@ -30,6 +30,9 @@
 .alias _py65_putc	$f001	; Definitions for the py65mon emulator
 .alias _py65_getc	$f004
 
+_ioinit:
+	rts
+
 _getch:
 .scope
 *	lda _py65_getc

@@ -37,6 +37,7 @@ resetv:
 
 	pha		; clear all flags
 	plp
+	jsr _ioInit
 	jmp main	; go to main program initialization.
 .scend
 

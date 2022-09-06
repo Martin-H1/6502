@@ -4,20 +4,22 @@ ROMS = \
 	brainfast.rom
 
 SOURCES =  \
+	acia.asm \
 	brainfast.asm \
 	conio.asm \
 	data.asm \
 	py65monmain.asm \
-	vectors.asm
+	sbc27main.asm \
+	vectors.asm \
+	via.asm
 
 TESTS = 
 
-
-brainfast.rom: brainfast.asm
-	${OPHIS} -l brainfast.lst -m brainfast.map --65c02 brainfast.asm
-
 py65mon.rom: $(SOURCES)
 	${OPHIS} -l py65monmain.lst -m py65monmain.map --65c02 py65monmain.asm
+
+sbc27.rom: $(SOURCES)
+	${OPHIS} -l sbc27main.lst -m sbc27main.map --65c02 sbc27main.asm
 
 release: $(ROMS)
 
