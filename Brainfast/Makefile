@@ -1,7 +1,8 @@
 include ../common.mk
 
 ROMS = \
-	brainfast.rom
+	py65mon.rom \
+	sbc27.rom
 
 SOURCES =  \
 	acia.asm \

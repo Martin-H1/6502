@@ -43,11 +43,20 @@
 ; Macros
 ;
 .macro viaInit
-	lda #00
-	ldy #VIA_PCR		; zero out lower regsiters
-_loop:	sta _1,y
-	dey
-	bpl _loop 
+	lda #00			; zero out lower VIA regsiters
+	sta _1 + VIA_PRB	; note I unrolled a loop to avoid
+	sta _1 + VIA_PRA	; using the y register.
+	sta _1 + VIA_DDRB
+	sta _1 + VIA_DDRA
+	sta _1 + VIA_T1CL
+	sta _1 + VIA_T1CH
+	sta _1 + VIA_T1LL
+	sta _1 + VIA_TALH
+	sta _1 + VIA_T2CL
+	sta _1 + VIA_T2CH
+	sta _1 + VIA_SR
+	sta _1 + VIA_ACR
+	sta _1 + VIA_PCR
 	lda #$7f		; init two upper registers.
 	sta _1 + VIA_IFR
 	sta _1 + VIA_IER
