@@ -2,7 +2,7 @@
 ifeq ($(OS),Windows_NT)
     / = $(strip \)
     OPHIS = "C:/Program Files (x86)/Ophis/ophis.exe"
-    PY65MON = "%HOMEPATH%\AppData\Local\Programs\Python\Python38\Scripts\py65mon"
+    PY65MON = "%HOMEPATH%\AppData\Local\Programs\Python\Python311\Scripts\py65mon"
     PYTHON = python
     RM = del /f /q
     RMDIR = rmdir /s /q
